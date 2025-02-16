@@ -1,7 +1,11 @@
 TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
 import logging
 
-from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
+from llm import process_request
+
+from functools import wraps
+
+from telegram import Update, ChatAction, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 
 logger = logging.getLogger(__name__)
@@ -27,27 +31,28 @@ SECOND_MENU_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton(TUTORIAL_BUTTON, url="https://core.telegram.org/bots/api")]
 ])
 
+def send_typing_action(func):
+    """Sends typing action while processing func command."""
 
+    @wraps(func)
+    def command_func(update, context, *args, **kwargs):
+        context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+        return func(update, context,  *args, **kwargs)
+
+    return command_func
+
+@send_typing_action
 def process(update: Update, context: CallbackContext) -> None:
     """
     This function would be added to the dispatcher as a handler for messages coming from the Bot API
     """
 
-    # Print to console
-    print(f'{update.message.from_user.first_name} wrote {update.message.text}')
+    print(f'{update.message.from_user.first_name}: {update.message.text}')
 
-    
+    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    response = process_request(update.message.text)
 
-    if screaming and update.message.text:
-        context.bot.send_message(
-            update.message.chat_id,
-            update.message.text.upper(),
-            # To preserve the markdown, we attach entities (bold, italic...)
-            entities=update.message.entities
-        )
-    else:
-        # This is equivalent to forwarding, without the sender's name
-        update.message.copy(update.message.chat_id)
+    update.message.reply_text(response)
 
 
 def scream(update: Update, context: CallbackContext) -> None:
