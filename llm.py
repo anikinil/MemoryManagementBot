@@ -7,9 +7,10 @@ voicing = False
 
 lang = 'en'
 
-model = 'deepseek-r1:14b'
+# model = 'deepseek-r1:14b'
 # model = 'deepseek-coder-v2'
 # model = 'deepseek-r1:32b'
+model = 'command-r7b'
 
 think_tag_o = '<think>'
 think_tag_c = '</think>'
