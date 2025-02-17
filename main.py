@@ -10,8 +10,6 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 logger = logging.getLogger(__name__)
 
-# Store bot screaming status
-screaming = False
 
 # Pre-assign menu text
 FIRST_MENU = "<b>Menu 1</b>\n\nA beautiful menu with a shiny inline button."
@@ -41,6 +39,7 @@ def send_typing_action(func):
 
     return command_func
 
+# TODO make the typnig action last
 @send_typing_action
 def process(update: Update, context: CallbackContext) -> None:
     """
@@ -54,16 +53,6 @@ def process(update: Update, context: CallbackContext) -> None:
 
     update.message.reply_text(response)
 
-
-def scream(update: Update, context: CallbackContext) -> None:
-    """
-    This function handles the /scream command
-    """
-
-    global screaming
-    screaming = True
-
-
 def menu(update: Update, context: CallbackContext) -> None:
     """
     This handler sends a menu with the inline buttons we pre-assigned above
@@ -75,7 +64,6 @@ def menu(update: Update, context: CallbackContext) -> None:
         parse_mode=ParseMode.HTML,
         reply_markup=FIRST_MENU_MARKUP
     )
-
 
 def button_tap(update: Update, context: CallbackContext) -> None:
     """

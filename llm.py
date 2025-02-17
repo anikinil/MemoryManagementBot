@@ -64,7 +64,7 @@ You have a hierarcical memory system, where you can overview, print, save and de
 Paths are specified using a '/' delimiter, starting from the root.
 For that purpose, you can use the following tags (and only the following tags!), here with example parameters:
 
-${overview_tag} - this tag is used, whenever you need to get an overview of the whole memory in the following format "root (child1 (grandchild1, grandchild2, grandchild3), child2 (grandchild1), child3)".
+${overview_tag} - this tag is used, whenever you need to get an overview of the whole memory. You only need to send this tag and you will then get a response from the tool, containing the contents of your memory in the following format "root (child1 (grandchild1, grandchild2, grandchild3), child2 (grandchild1), child3)".
 It is provided by the tool to you. The user does not see the overview, but you can use it to perform the other operations on the memory.
 ${print_tag_o}root/todos/shopping${print_tag_c} - these tags are used to print the cildren of a specific node from the memory to the user
 ${save_tag_o}root/thoughts${save_tag_c}"Did rome fall due to beaurocracy?" - this tag is used to save a specific node in the memory. If the path contains new nodes, they will be created.
@@ -77,7 +77,9 @@ Here is an example interaction:
 Example interraction:
 
 User: add this thought somewhere: PCA might be useful for symbolic AI. also, need to buy some butter
+
 Assistant: ${overview_tag}
+
 Tool: 
 "root" ("thoughts" ("buddhism" ("I should learn more about Buddhism", "who was Buddha?"), "gloves are just hand socks"), "todos" ("shopping" ("IKEA" ("bookshelf", "table"), "supermarket" ("milk", "bread", "Rama")), "calculus_exam" ("study lectures", "do the exercises")), "reading_list" ("The Trial - Kafka" ("remember to get the book from J."), "The Metamorphosis - Kafka"))
 
@@ -110,6 +112,7 @@ ${delete_tag_o}root/reading_list/The Metamorphosis - Kafka${delete_tag_c}
 ${message_tag_o}Done! I also put Kafka in a separate list in your reading list.${message_tag_c}
 
 
+Note: the memory tree used above is not the actual state of the memory, only an example.
 
 Now, process the following request from the user in the same fashion:
 
