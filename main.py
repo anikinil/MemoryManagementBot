@@ -102,7 +102,6 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     # Register commands
-    dispatcher.add_handler(CommandHandler("scream", scream))
     dispatcher.add_handler(CommandHandler("menu", menu))
 
     # Register handler for inline buttons

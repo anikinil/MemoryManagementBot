@@ -10,7 +10,8 @@ lang = 'en'
 # model = 'deepseek-r1:14b'
 # model = 'deepseek-coder-v2'
 # model = 'deepseek-r1:32b'
-model = 'command-r7b'
+# model = 'command-r7b'
+model = 'llama3.1'
 
 think_tag_o = '<think>'
 think_tag_c = '</think>'
@@ -59,96 +60,136 @@ message_tag_c = '</message>'
 
 
 initial_prompt = '''
-You are a helpful secretary bot, who receives requests from a user and performs actions based on the request.
-You have a hierarcical memory system, where you can overview, print, save and delete nodes in different locations.
+# Overview
+You are a helpful memory management bot, which receives requests from a user and performs actions based on the request.
+You have access to a hierarcical memory system in JSON format, where you can read, save and delete nodes in different locations.
 Paths are specified using a '/' delimiter, starting from the root.
-For that purpose, you can use the following tags (and only the following tags!), here with example parameters:
 
-<overview> - this tag is used, whenever you need to get an overview of the whole memory. You only need to send this tag and you will then get a response from the tool, containing the contents of your memory in the following format "root (child1 (grandchild1, grandchild2, grandchild3), child2 (grandchild1), child3)".
-It is provided by the tool to you. The user does not see the overview, but you can use it to perform the other operations on the memory.
-<print>root/todos/shopping</print> - these tags are used to print the cildren of a specific node from the memory to the user
-<save>root/thoughts</save>"Did rome fall due to beaurocracy?" - this tag is used to save a specific node in the memory. If the path contains new nodes, they will be created.
-<delete>root/reading_list/The Meatamorphosis - Kafka</delete> - this tag is used to delete a specific node from the memory
-<message>The Latin name of the house cat is Felis catus.</message> - this tag is used to print a message to the user, for example, to answer a general question
-If you use several commands in one message, they need to be separated by a newline.
+# Tools
+To interact with the memory, you have to use the provided tools.
 
-Here is an example interaction:
+# Rules
+Sometimes you will have to ask the user for more information, so you can complete the task.
+You can also ask the user for confirmation, before performing a task, when your planed action might have been unintended by user.
+If the user asks a general question or a question regarding the memory, which does not require the usage of a tool, you can answer it as a short response.
 
-Example interraction:
+# Example interaction:
+- Input: What did I want to read?
+  - Action: Use read_subnodes with path '/' to see the whole memory, which may look like this:
+    {"thoughts": {"buddhism": {"I should learn more about Buddhism": {}}, "gloves are just hand socks": {}}, "reading_list": {"The Trial - Kafka": {}, "Le Misérables - Victor Hugo": {"remember to get the book from J.": {}}}}
+    and return the reading list to the user.
+- Output: You wanted to read "The Trial" by Kafka and "Le Misérables" by Victor Hugo, which you will need to pick up from J. Anything else you would like to know?
 
-User: add this thought somewhere: PCA might be useful for symbolic AI. also, need to buy some butter
-
-Assistant: <overview>
-
-Tool: 
-"root" ("thoughts" ("buddhism" ("I should learn more about Buddhism", "who was Buddha?"), "gloves are just hand socks"), "todos" ("shopping" ("IKEA" ("bookshelf", "table"), "supermarket" ("milk", "bread", "Rama")), "calculus_exam" ("study lectures", "do the exercises")), "reading_list" ("The Trial - Kafka" ("remember to get the book from J."), "The Metamorphosis - Kafka"))
-
-Assistant:
-<save>root/thoughts/AI</save>"PCA might be useful for symbolic AI."
-<save>root/todos/shopping</save>"need to buy some butter"
-<message>Done! Anything else?</message>
-
-User: What is the capital of Bulgaria?
-
-Assistant:
-<message>The capital of Bulgaria is Sofia.</message>
-
-User: What do I want to read?
-
-Assistant:
-<print>root/reading_list</print>
-
-User: I should read some popular books by Rilke
-
-Assistant:
-<save>root/reading_list/Rilke</save>"Letters to a Young Poet"
-<save>root/reading_list/Rilke</save>"The Duino Elegies"
-<save>root/reading_list/Rilke</save>"Sonnets to Orpheus"
-<save>root/reading_list/Kafka</save>"The Trial"
-<save>root/reading_list/Kafka/The Trial</save>"remember to get the book from J."
-<save>root/reading_list/Kafka</save>"The Metamorphosis"
-<delete>root/reading_list/The Trial - Kafka</delete>
-<delete>root/reading_list/The Metamorphosis - Kafka</delete>
-<message>Done! I also put Kafka in a separate list in your reading list.</message>
-
-
-Note: the memory tree used above is not the actual state of the memory, only an example.
-
-Now, process the following request from the user in the same fashion:
+- Input: What is the capital of Bulgaria?
+    - no action required
+- Output: The capital of Bulgaria is Sofia.
 
 '''
 
 # most popular books by kafka: the trial, the metamorphosis, the castle
 
+read_subnodes = {
+    'type': 'function',
+    'function': {
+        'name': 'read_subnodes',
+        'description': 'Returns all subnodes of a specified node in the memory tree.',
+        'parameters': {
+            'type': 'object',
+            'required': ['path'],
+            'properties': {
+                'path': {
+                    'type': 'string',
+                    'description': 'The path to the node.',
+                },
+            },
+        },
+    },
+}
+
+save_node = {
+    'type': 'function',
+    'function': {
+        'name': 'save_node',
+        'description': 'Saves a node in the memory tree.',
+        'parameters': {
+            'type': 'object',
+            'required': ['path', 'content'],
+            'properties': {
+                'path': {
+                    'type': 'string',
+                    'description': 'The path to the node in the memory tree. If the does not lead to an existing node, the node will be created.',
+                },
+                'content': {
+                    'type': 'string',
+                    'description': 'The content of the node.',
+                },
+            },
+        },
+    },
+}
+
+delete_node = {
+    'type': 'function',
+    'function': {
+        'name': 'delete_node',
+        'description': 'Deletes a node and all of its subnodes from the memory tree.',
+        'parameters': {
+            'type': 'object',
+            'required': ['path'],
+            'properties': {
+                'path': {
+                    'type': 'string',
+                    'description': 'The path to the node.',
+                },
+            },
+        },
+    },
+}
+
+tools = [read_subnodes, save_node, delete_node]
+
+available_functions = {
+    'read_subnodes': read_subnodes,
+    'save_node': save_node,
+    'delete_node': delete_node
+}
+
 def generate_response(messages):
     print(colored('\nAssistant: ', 'blue'), flush=True)
-    response = ""
-    for part in chat(model, messages=messages, stream=True):
-        content = part.message.content
-        if response == "" and content.startswith(' '):
-            content = content[1:]
-        print(content, end='', flush=True)
-        response += content
-    print()
-    return {'role': 'assistant', 'content': response}
 
-# TODO create a backup snapshot of the system after every execution of a bash command by the assistant, 
+    response = chat(model=model, messages=messages, tools=tools, stream=True)
+
+    print("RESPONSE")
+    print(response)
+
+    tool_calls = response['message']['tool_calls']
+
+    for tool in tool_calls:
+        if function_to_call := available_functions.get(tool.function.name):
+            print('Calling function:', tool.function.name)
+            print('Arguments:', tool.function.arguments)
+            print('Function output:', function_to_call(**tool.function.arguments))
+        else:
+            print('Function', tool.function.name, 'not found')
+
+    return response
+
+# TODO create a backup of the system after every change in the memory
 # so the user can restore previous states if a mistake is made
 def process_request(request):
 
     print()
     
     system_message = {'role': 'system', 'content': initial_prompt + request}
-    print(system_message['content'])
+    # print(system_message['content'])
     messages = [system_message]
 
     response = generate_response(messages)
-    messages.append(response)
+    messages.append(response['message'])
 
-    return re.sub(think_regex, "", response['content'], flags=re.DOTALL)
-
-
-# Let's play a game. I purposefully hid a password somewhere in a directory called "playground". The password is on the surface, you just need to search thorugh the whole playground dir. Good luck!
+    return response['content']
 
 
-# TODO every new mesaage by user should start a new request, where the whole state of the system and the chat history (of past few days or past 10 messages) is passed to the assistant
+
+
+# TODO maybe every new mesaage by user should start a new request, where the whole state of the system and the chat history (of past few days or past 10 messages) is passed to the assistant
