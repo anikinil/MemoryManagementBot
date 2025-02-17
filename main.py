@@ -7,6 +7,8 @@ from functools import wraps
 
 from telegram import Update, ChatAction, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +31,25 @@ SECOND_MENU_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton(TUTORIAL_BUTTON, url="https://core.telegram.org/bots/api")]
 ])
 
-# TODO make the typnig action last
 def send_typing_action(func):
     """Sends typing action while processing func command."""
 
     @wraps(func)
     def command_func(update, context, *args, **kwargs):
-        context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-        return func(update, context,  *args, **kwargs)
+        def send_typing():
+            while not stop_event.is_set():
+                context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+                time.sleep(4)  # Telegram recommends sending every 4-5 seconds
+
+        stop_event = threading.Event()
+        typing_thread = threading.Thread(target=send_typing)
+        typing_thread.start()
+
+        try:
+            return func(update, context, *args, **kwargs)
+        finally:
+            stop_event.set()
+            typing_thread.join()
 
     return command_func
 
@@ -45,15 +58,9 @@ def process(update: Update, context: CallbackContext) -> None:
     """
     This function would be added to the dispatcher as a handler for messages coming from the Bot API
     """
-
     print(f'{update.message.from_user.first_name}: {update.message.text}')
-
-    context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    response = process_request(update.message.text)
-
-    # TODO process the tags used by the assistant here
-
-    update.message.reply_text(response)
+    message_from_llm = process_request(update.message.text)
+    update.message.reply_text(message_from_llm['content'])
 
 def menu(update: Update, context: CallbackContext) -> None:
     """

@@ -1,7 +1,8 @@
 from ollama import chat
 
-import re
 from termcolor import colored
+
+import json
 
 voicing = False
 
@@ -81,14 +82,14 @@ If the user asks a general question or a question regarding the memory, which do
 - Output: You wanted to read "The Trial" by Kafka and "Le Misérables" by Victor Hugo, which you will need to pick up from J. Anything else you would like to know?
 
 - Input: What is the capital of Bulgaria?
-    - no action required
+    - no action required, sice it is a trivial fact, and not a memory related question
 - Output: The capital of Bulgaria is Sofia.
 
 '''
 
 # most popular books by kafka: the trial, the metamorphosis, the castle
 
-read_subnodes = {
+read_subnodes_tool = {
     'type': 'function',
     'function': {
         'name': 'read_subnodes',
@@ -106,7 +107,7 @@ read_subnodes = {
     },
 }
 
-save_node = {
+save_node_tool = {
     'type': 'function',
     'function': {
         'name': 'save_node',
@@ -128,7 +129,7 @@ save_node = {
     },
 }
 
-delete_node = {
+delete_node_tool = {
     'type': 'function',
     'function': {
         'name': 'delete_node',
@@ -146,7 +147,24 @@ delete_node = {
     },
 }
 
-tools = [read_subnodes, save_node, delete_node]
+tools = [read_subnodes_tool, save_node_tool, delete_node_tool]
+
+def read_subnodes(path):
+    
+    with open('memory.json') as f:
+        d = json.load(f)
+        keys = path.strip('/').split('/')
+        for key in keys:
+            d = d.get(key, {})
+        print(d)
+        return d
+    
+def save_node(path, content):
+    return 'Node saved'
+
+def delete_node(path):
+    return 'Node deleted'
+        
 
 available_functions = {
     'read_subnodes': read_subnodes,
@@ -157,20 +175,20 @@ available_functions = {
 def generate_response(messages):
     print(colored('\nAssistant: ', 'blue'), flush=True)
 
-    response = chat(model=model, messages=messages, tools=tools, stream=True)
+    response = chat(model=model, messages=messages, tools=tools)
 
-    print("RESPONSE")
-    print(response)
+    if "tool_calls" in response["message"]:
+        tool_calls = response["message"]["tool_calls"]
 
-    tool_calls = response['message']['tool_calls']
-
-    for tool in tool_calls:
-        if function_to_call := available_functions.get(tool.function.name):
-            print('Calling function:', tool.function.name)
-            print('Arguments:', tool.function.arguments)
-            print('Function output:', function_to_call(**tool.function.arguments))
-        else:
-            print('Function', tool.function.name, 'not found')
+        for tool in tool_calls:
+            if function_to_call := available_functions.get(tool.function.name):
+                print('Calling function:', tool.function.name)
+                print('Arguments:', tool.function.arguments)
+                function_output = function_to_call(**tool.function.arguments)
+                print('Function output:', function_output)
+                return {'role': 'system', 'content': function_output}
+            else:
+                print('Function', tool.function.name, 'not found')
 
     return response
 
@@ -178,16 +196,17 @@ def generate_response(messages):
 # so the user can restore previous states if a mistake is made
 def process_request(request):
 
-    print()
+    # print(initial_prompt + request)
     
-    system_message = {'role': 'system', 'content': initial_prompt + request}
+    system_message = {'role': 'system', 'content': initial_prompt}
+    user_prompt = {'role': 'user', 'content': request}
     # print(system_message['content'])
-    messages = [system_message]
+    messages = [system_message, user_prompt]
 
-    response = generate_response(messages)
-    messages.append(response['message'])
+    response_message = generate_response(messages)
+    # messages.append(response['message'])
 
-    return response['content']
+    return response_message
 
 
 
