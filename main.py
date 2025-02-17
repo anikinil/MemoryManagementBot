@@ -29,6 +29,7 @@ SECOND_MENU_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton(TUTORIAL_BUTTON, url="https://core.telegram.org/bots/api")]
 ])
 
+# TODO make the typnig action last
 def send_typing_action(func):
     """Sends typing action while processing func command."""
 
@@ -39,7 +40,6 @@ def send_typing_action(func):
 
     return command_func
 
-# TODO make the typnig action last
 @send_typing_action
 def process(update: Update, context: CallbackContext) -> None:
     """
@@ -50,6 +50,8 @@ def process(update: Update, context: CallbackContext) -> None:
 
     context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     response = process_request(update.message.text)
+
+    # TODO process the tags used by the assistant here
 
     update.message.reply_text(response)
 
