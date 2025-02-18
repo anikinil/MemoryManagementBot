@@ -1,7 +1,7 @@
 TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
 import logging
 
-from llm import process_request
+from llm import generate_response
 
 from functools import wraps
 
@@ -9,6 +9,8 @@ from telegram import Update, ChatAction, InlineKeyboardMarkup, InlineKeyboardBut
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import threading
 import time
+
+from tools import available_functions
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +57,37 @@ def send_typing_action(func):
 
 @send_typing_action
 def process(update: Update, context: CallbackContext) -> None:
-    """
-    This function would be added to the dispatcher as a handler for messages coming from the Bot API
-    """
-    print(f'{update.message.from_user.first_name}: {update.message.text}')
-    message_from_llm = process_request(update.message.text)
-    update.message.reply_text(message_from_llm['content'])
+
+    user_input = update.message.text
+    response = generate_response('user', user_input)
+    
+    tool_calls = response.message.tool_calls
+    if tool_calls:
+        function_output = ''
+        for tool in tool_calls:
+            if function_to_call := available_functions.get(tool.function.name):
+                print('Calling function: ' + tool.function.name)
+                print('Arguments: ' + str(tool.function.arguments))
+                function_output = function_to_call(**tool.function.arguments)
+                send_telegram_message(update, message='Function output: ' + str(function_output))
+            else:
+                function_output = 'function does not exist'
+                print('Function output: ' + function_output)
+                send_telegram_message(update, message='Function  ' + tool.function.name + ': ' + str(function_output))
+
+        response_to_tool = generate_response('tool', str(function_output))
+        send_telegram_message(update, message=(response_to_tool['message']['content']))
+    else:
+        print("No tool calls")
+        send_telegram_message(update, message=(response['message']['content']))
+
+def send_telegram_message(update: Update, message) -> None:
+
+    if message != '':
+        update.message.reply_text(message)
+    else:
+        update.message.reply_text('empty response')
+
 
 def menu(update: Update, context: CallbackContext) -> None:
     """
