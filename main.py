@@ -1,7 +1,7 @@
 TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
 import logging
 
-from llm import generate_response
+from llm import generate_response, memory_str
 
 from functools import wraps
 
@@ -39,6 +39,7 @@ def send_typing_action(func):
     @wraps(func)
     def command_func(update, context, *args, **kwargs):
         def send_typing():
+            time.sleep(1)
             while not stop_event.is_set():
                 context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
                 time.sleep(4)  # Telegram recommends sending every 4-5 seconds
@@ -59,7 +60,7 @@ def send_typing_action(func):
 def process(update: Update, context: CallbackContext) -> None:
 
     user_input = update.message.text
-    response = generate_response('user', user_input)
+    response = generate_llm_response('user', user_input)
     
     tool_calls = response.message.tool_calls
     if tool_calls:
@@ -69,24 +70,31 @@ def process(update: Update, context: CallbackContext) -> None:
                 print('Calling function: ' + tool.function.name)
                 print('Arguments: ' + str(tool.function.arguments))
                 function_output = function_to_call(**tool.function.arguments)
-                send_telegram_message(update, message='Function output: ' + str(function_output))
+                send_telegram_message(update, message='Function ' + tool.function.name + ': ' + str(tool.function.arguments))
+                # send_telegram_message(update, message='Output: ' + str(function_output))
             else:
                 function_output = 'function does not exist'
-                print('Function output: ' + function_output)
-                send_telegram_message(update, message='Function  ' + tool.function.name + ': ' + str(function_output))
+                print('Function does not exist: ' + tool.function.name)
+                send_telegram_message(update, message='Function does not exist: ' + tool.function.name)
 
-        response_to_tool = generate_response('tool', str(function_output))
-        send_telegram_message(update, message=(response_to_tool['message']['content']))
+        if len(tool_calls) == 1:
+            response_to_tool = generate_llm_response('tool', str(function_output))
+            send_telegram_message(update, message=(response_to_tool['message']['content']))
+        # print(memory_str)
     else:
-        print("No tool calls")
+        print("No tool calls\n")
         send_telegram_message(update, message=(response['message']['content']))
+
+@send_typing_action
+def generate_llm_response(role, input):
+    return generate_response(role, input)
 
 def send_telegram_message(update: Update, message) -> None:
 
     if message != '':
         update.message.reply_text(message)
     else:
-        update.message.reply_text('empty response')
+        update.message.reply_text('assistant responded with an empty message')
 
 
 def menu(update: Update, context: CallbackContext) -> None:
