@@ -134,7 +134,6 @@ def save_node(path, content):
         save_state(state)
         return 'Node saved'
 
-# fix
 def move_nodes(old_path, new_path):
 
     state = get_last_state()
@@ -143,8 +142,8 @@ def move_nodes(old_path, new_path):
     if sub == 'Node does not exist':
         return 'Node does not exist: ' + old_path
 
-    if old_path == new_path:
-        return 'Paths are the same'
+    if old_path.rsplit('/',1)[0] == new_path:
+        return 'New path already leads to the location of the node to be moved'
 
     keys = new_path.strip('/').split('/')
     current = state
@@ -153,7 +152,9 @@ def move_nodes(old_path, new_path):
             current[key] = {}
         current = current[key]
 
-    current[keys[-1]] = {old_path.split('/')[-1]: sub, **current[keys[-1]]}
+    print(old_path.split('/')[-1])
+
+    current[keys[-1]] = {old_path.split('/')[-1]: sub, **(current[keys[-1]] if keys[-1] in current else {})}
 
     keys = old_path.strip('/').split('/')
     current = state
