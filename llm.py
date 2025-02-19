@@ -7,45 +7,22 @@ from tools import available_tools
 # model = 'deepseek-coder-v2'
 # model = 'deepseek-r1:32b'
 # model = 'command-r7b'
-model = 'llama3.1'
+# model = 'llama3.1'
 model = 'qwen2.5:14b'
+# model = 'qwen2.5:32b'
+# model = 'mistral-small:22b'
+# model = 'mistral-small:24b'
 
-think_regex = r"<think>.*?</think>"
+# think_regex = r"<think>.*?</think>"
 
 
-# Tool:
-#     "root" (
-#         "thoughts" (
-#             "buddhism" (
-#                 "I should learn more about Buddhism", "who was Buddha?"
-#             ),
-#             "gloves are just hand socks"
-#         ),
-#         "todos" (
-#             "shopping" (
-#                 "IKEA" (
-#                     "bookshelf", "table"
-#                 ),
-#                 "supermarket" (
-#                     "milk", "bread", "Rama"
-#                 )
-#             ),
-#             "calculus_exam" (
-#                 "study lectures", "do the exercises"
-#             )
-#         ),
-#         "reading_list" (
-#             "The Trial - Kafka" ("remember to get the book from J."), "The Metamorphosis - Kafka", "The Castle - Kafka"
-#         )
-#    )
-
-with open('memory.json') as f:
-    memory_str = json.load(f)
+with open('memory_log.json') as f:
+    memory_str = json.load(f)[0]
 
 initial_prompt = '''
 # Overview
-You are a helpful and very likeable memory management and knowledge telegram bot, which receives requests from a user and performs actions based on the request, or answers questions.
-You have access to a hierarcical memory system in JSON format, where you can read, save and delete nodes in different locations.
+You are a helpful memory management and knowledge telegram bot, which receives requests from a user and performs actions based on the request, or answers questions.
+You have access to a hierarcical memory system in JSON format, where you can read, save, move and delete nodes in different locations.
 Paths are specified using a '/' delimiter, starting from the root.
 
 # Current memory state
@@ -78,6 +55,7 @@ If the user asks a general question, which does not require the usage of a tool,
 - Feel free to create new nodes in root if it helps you to organize the memory.
 - You can take multiple actions in one response.
 - You can use telegram markdown to format your messages.
+- You can undo some cahnges you did in memory by using the undo tool, if necessary.
 
 '''.format(memory_state=memory_str)
 
@@ -89,6 +67,8 @@ def generate_response(role, input_message):
     print(role + ': ' + str(input_message) + '\n')
     messages.append({'role': role, 'content': input_message})
     response = chat(model=model, messages=messages, tools=available_tools)
+    tokens_per_second = response['eval_count'] / response['eval_duration']
+    print('Tokens / second: ' + str(tokens_per_second)*(10**9))
     if response['message']['content']:
         print('assistant: ' + response['message']['content'] + '\n')
     else:
@@ -96,11 +76,7 @@ def generate_response(role, input_message):
     messages.append(response['message'])
     return response
 
-# TODO create a backup of the system after every change in the memory
-# so the user can restore previous states if a mistake is made
+# TODO maybe every new session (e. g. activated by menu button) with only some of the past messages visible to the model
 
-# TODO maybe every new mesaage by user should start a new request, where the whole state 
-# of the system and the chat history (of past few days or past 10 messages) is passed to the assistant
-
-# TODO add an undo tool to the memory, so the bot can reliably undo the last action if user asks for it
-# TODO add a move tool to the memory, so the bot can move a node from one location to another
+# TODO maybe add a tool to directly pretty print a specific nodes (maybe from multiple paths) for user,
+# bypassing the model context window, to not clutter it

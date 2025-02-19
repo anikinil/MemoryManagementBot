@@ -1,4 +1,5 @@
 TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
+
 import logging
 
 from llm import generate_response, memory_str
@@ -56,11 +57,10 @@ def send_typing_action(func):
 
     return command_func
 
-@send_typing_action
 def process(update: Update, context: CallbackContext) -> None:
 
     user_input = update.message.text
-    response = generate_llm_response('user', user_input)
+    response = generate_llm_response(update, context, 'user', user_input)
     
     tool_calls = response.message.tool_calls
     if tool_calls:
@@ -78,7 +78,7 @@ def process(update: Update, context: CallbackContext) -> None:
                 send_telegram_message(update, message='Function does not exist: ' + tool.function.name)
 
         if len(tool_calls) == 1:
-            response_to_tool = generate_llm_response('tool', str(function_output))
+            response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
             send_telegram_message(update, message=(response_to_tool['message']['content']))
         # print(memory_str)
     else:
@@ -86,7 +86,8 @@ def process(update: Update, context: CallbackContext) -> None:
         send_telegram_message(update, message=(response['message']['content']))
 
 @send_typing_action
-def generate_llm_response(role, input):
+def generate_llm_response(update: Update, context: CallbackContext, role, input) -> None:
+    
     return generate_response(role, input)
 
 def send_telegram_message(update: Update, message) -> None:
