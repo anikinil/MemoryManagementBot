@@ -3,20 +3,17 @@ from ollama import chat
 
 from tools import available_tools
 
-# model = 'deepseek-r1:14b'
-# model = 'deepseek-coder-v2'
-# model = 'deepseek-r1:32b' # not enough ram
-# model = 'command-r7b'
-# model = 'llama3.1'
-model = 'qwen2.5:14b' # almost there in terms of reasoning, but does weird stuff from time to time
-# model = 'qwen2.5:32b' # not enough ram
-# model = 'mistral-small:22b' # too slow
-# model = 'mistral-small:24b' # way too slow
-# model = 'mistral'
-# model = 'mistral-nemo'
-
-# think_regex = r"<think>.*?</think>"
-
+# model = 'deepseek-r1:14b'         # not tool support; does thinking -> too slow
+# model = 'deepseek-coder-v2'       # no tool support
+# model = 'deepseek-r1:32b'         # no tool support; not enough ram
+# model = 'command-r7b'             # too small
+# model = 'llama3.1'                # too small
+# model = 'qwen2.5:14b'             # almost there in terms of reasoning, but does weird stuff from time to time
+# model = 'qwen2.5:32b'             # not enough ram
+# model = 'mistral-small:22b'       # too slow
+# model = 'mistral-small:24b'       # way too slow
+# model = 'mistral'                 # good, but pretty slow
+model = 'mistral-nemo'              # big context window (124k tokens), good reasoning, but pretty slow
 
 with open('memory_log.json') as f:
     memory_str = json.load(f)[-1]
