@@ -65,12 +65,12 @@ def generate_response(role, input_message):
     
     print(role + ': ' + str(input_message) + '\n')
     messages.append({'role': role, 'content': input_message})
+    print('Generating response...\n')
     response = chat(model=model, messages=messages, tools=available_tools)
     if response['message']['content']:
         print('assistant: ' + response['message']['content'] + '\n')
     else:
-        print('assistant: no response')
-    print()
+        print('assistant: no response\n')
     prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
     gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
     print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
@@ -91,3 +91,9 @@ def generate_response(role, input_message):
 # TODO maybe add a tool for creating menu buttons to display commonly used modes, like todos
 
 # NOTE might think of a way to make the memory structure more intuitive for the model
+
+# TODO rename the project to NotetakerBot
+
+# NOTE might want to allow multiple paths on save_node(s) tool
+
+# TODO add total response time from request to last tool call for developement

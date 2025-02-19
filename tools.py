@@ -26,18 +26,14 @@ save_node_tool = {
     'type': 'function',
     'function': {
         'name': 'save_node',
-        'description': 'Saves a node in the memory tree.',
+        'description': 'Saves a new node in the memory tree.',
         'parameters': {
             'type': 'object',
-            'required': ['path', 'content'],
+            'required': ['path'],
             'properties': {
                 'path': {
                     'type': 'string',
-                    'description': 'The path to the node in the memory tree. If the does not lead to an existing node, the node will be created.',
-                },
-                'content': {
-                    'type': 'string',
-                    'description': 'The content of the node.',
+                    'description': 'The path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created.',
                 },
             },
         },
@@ -48,7 +44,7 @@ move_nodes_tool = {
     'type': 'function',
     'function': {
         'name': 'move_nodes',
-        'description': 'Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path. If the nodes at new_path do not exist, they will be created.',
+        'description': 'Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path. If the nodes at new_path do not exist yet, they will be created.',
         'parameters': {
             'type': 'object',
             'required': ['old_path', 'new_path'],
@@ -114,19 +110,21 @@ def read_subnodes(path):
         state = state.get(key, {})
     return state
 
-def save_node(path, content):
+def save_node(path):
 
     state = get_last_state()
 
     keys = path.split('/')
     current = state
 
-    for key in keys:
+    for key in keys[:-1]:
         if key not in current:
             current[key] = {}
         current = current[key]
 
-    current[content] = {}
+    print(current)
+    print(keys[-1])
+    current[keys[-1]] = {}
 
     if current == state:
         return 'Node already exists'
