@@ -138,6 +138,9 @@ def button_tap(update: Update, context: CallbackContext) -> None:
 
 
 def main() -> None:
+
+    print('\nBot started\n')
+    
     updater = Updater(TOKEN)
 
     # Get the dispatcher to register handlers
@@ -158,6 +161,7 @@ def main() -> None:
 
     # Run the bot until you press Ctrl-C
     updater.idle()
+
 
 
 if __name__ == '__main__':

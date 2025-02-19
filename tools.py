@@ -48,7 +48,7 @@ move_nodes_tool = {
     'type': 'function',
     'function': {
         'name': 'move_nodes',
-        'description': 'Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path.',
+        'description': 'Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path. If the nodes at new_path do not exist, they will be created.',
         'parameters': {
             'type': 'object',
             'required': ['old_path', 'new_path'],

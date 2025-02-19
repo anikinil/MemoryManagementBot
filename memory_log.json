@@ -20,186 +20,20 @@
                 "buddhism": {
                     "I should learn more about Buddhism": {}
                 },
-                "gloves are just hand socks": {}
+                "Gloves are just hand socks": {}
             },
             "todo": {
                 "Clean the kitchen": {}
             },
-            "random_facts": {
+            "random facts": {
                 "The first moon landing by Americans occurred in 1969.": {}
             },
-            "ai_agents": {
-                "yt": {
-                    "https://youtu.be/9FuNtfsnRNo?si=rmteMKvHZE-Bd5mG": {}
-                }
-            }
-        }
-    },
-    {
-        "root": {
-            "reading_list": {
-                "The Trial - Kafka": {}
-            },
-            "shopping": {
-                "groceries": {
-                    "milk": {}
-                },
-                "IKEA": {
-                    "lamp": {},
-                    "desk": {}
-                }
-            },
-            "thoughts": {
-                "buddhism": {
-                    "miserables": {
-                        "remember to get the book from J.": {}
-                    },
-                    "I should learn more about Buddhism": {}
-                },
-                "gloves are just hand socks": {}
-            },
-            "todo": {
-                "Clean the kitchen": {}
-            },
-            "random_facts": {
-                "The first moon landing by Americans occurred in 1969.": {}
-            },
-            "ai_agents": {
-                "yt": {
-                    "https://youtu.be/9FuNtfsnRNo?si=rmteMKvHZE-Bd5mG": {}
-                }
-            }
-        }
-    },
-    {
-        "root": {
-            "reading_list": {
-                "The Trial - Kafka": {}
-            },
-            "shopping": {
-                "groceries": {
-                    "milk": {}
-                },
-                "IKEA": {
-                    "lamp": {},
-                    "desk": {}
-                }
-            },
-            "thoughts": {
-                "buddhism": {
-                    "miserables": {
-                        "remember to get the book from J.": {}
-                    },
-                    "I should learn more about Buddhism": {}
-                },
-                "gloves are just hand socks": {}
-            },
-            "todo": {
-                "Clean the kitchen": {}
-            },
-            "random_facts": {
-                "The first moon landing by Americans occurred in 1969.": {}
-            },
-            "ai_agents": {
-                "yt": {
-                    "https://youtu.be/9FuNtfsnRNo?si=rmteMKvHZE-Bd5mG": {}
-                }
-            },
-            "future_improvements": {
-                "code": {
-                    "": {}
-                }
-            }
-        }
-    },
-    {
-        "root": {
-            "reading_list": {
-                "The Trial - Kafka": {}
-            },
-            "shopping": {
-                "groceries": {
-                    "milk": {}
-                },
-                "IKEA": {
-                    "lamp": {},
-                    "desk": {}
-                }
-            },
-            "thoughts": {
-                "buddhism": {
-                    "miserables": {
-                        "remember to get the book from J.": {}
-                    },
-                    "I should learn more about Buddhism": {}
-                },
-                "gloves are just hand socks": {}
-            },
-            "todo": {
-                "Clean the kitchen": {}
-            },
-            "random_facts": {
-                "The first moon landing by Americans occurred in 1969.": {}
-            },
-            "ai_agents": {
-                "yt": {
-                    "https://youtu.be/9FuNtfsnRNo?si=rmteMKvHZE-Bd5mG": {}
-                }
-            },
-            "future_improvements": {
-                "code": {
-                    "": {},
-                    "add a tool for notifying a user via message on specific date and time": {
-                        "": {}
-                    }
-                }
-            }
-        }
-    },
-    {
-        "root": {
-            "reading_list": {
-                "The Trial - Kafka": {}
-            },
-            "shopping": {
-                "groceries": {
-                    "milk": {}
-                },
-                "IKEA": {
-                    "lamp": {},
-                    "desk": {}
-                }
-            },
-            "thoughts": {
-                "buddhism": {
-                    "miserables": {
-                        "remember to get the book from J.": {}
-                    },
-                    "I should learn more about Buddhism": {}
-                },
-                "gloves are just hand socks": {}
-            },
-            "todo": {
-                "Clean the kitchen": {}
-            },
-            "random_facts": {
-                "The first moon landing by Americans occurred in 1969.": {}
-            },
-            "ai_agents": {
-                "yt": {
-                    "https://youtu.be/9FuNtfsnRNo?si=rmteMKvHZE-Bd5mG": {}
-                },
-                "future_improvements": {
-                    "code": {
-                        "add a tool for notifying a user via message on specific date and time": {}
-                    }
-                }
-            },
-            "future_improvements": {
-                "code": {
-                    "": {},
-                    "add a tool for notifying a user via message on specific date and time": {
-                        "": {}
+            "Computer Science": {
+                "AI and Machine Learning": {
+                    "AI agents": {
+                        "YouTube": {
+                            "https://youtu.be/9FuNtfsnRNo?si=rmteMKvHZE-Bd5mG": {}
+                        }
                     }
                 }
             }

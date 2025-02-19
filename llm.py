@@ -5,23 +5,25 @@ from tools import available_tools
 
 # model = 'deepseek-r1:14b'
 # model = 'deepseek-coder-v2'
-# model = 'deepseek-r1:32b'
+# model = 'deepseek-r1:32b' # not enough ram
 # model = 'command-r7b'
 # model = 'llama3.1'
-model = 'qwen2.5:14b'
-# model = 'qwen2.5:32b'
-# model = 'mistral-small:22b'
-# model = 'mistral-small:24b'
+model = 'qwen2.5:14b' # almost there in terms of reasoning, but does weird stuff from time to time
+# model = 'qwen2.5:32b' # not enough ram
+# model = 'mistral-small:22b' # too slow
+# model = 'mistral-small:24b' # way too slow
+# model = 'mistral'
+# model = 'mistral-nemo'
 
 # think_regex = r"<think>.*?</think>"
 
 
 with open('memory_log.json') as f:
-    memory_str = json.load(f)[0]
+    memory_str = json.load(f)[-1]
 
 initial_prompt = '''
 # Overview
-You are a helpful memory management and knowledge telegram bot, which receives requests from a user and performs actions based on the request, or answers questions.
+You are a helpful and creative memory management and knowledge telegram bot, which receives requests from a user and performs actions based on the request, or answers questions.
 You have access to a hierarcical memory system in JSON format, where you can read, save, move and delete nodes in different locations.
 Paths are specified using a '/' delimiter, starting from the root.
 
@@ -67,16 +69,28 @@ def generate_response(role, input_message):
     print(role + ': ' + str(input_message) + '\n')
     messages.append({'role': role, 'content': input_message})
     response = chat(model=model, messages=messages, tools=available_tools)
-    tokens_per_second = response['eval_count'] / response['eval_duration']
-    print('Tokens / second: ' + str(tokens_per_second)*(10**9))
     if response['message']['content']:
         print('assistant: ' + response['message']['content'] + '\n')
     else:
         print('assistant: no response')
+    print()
+    prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
+    gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
+    print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
+    print('Generated tokens / second: ' + str(gen_tokens_per_second))
     messages.append(response['message'])
     return response
 
 # TODO maybe every new session (e. g. activated by menu button) with only some of the past messages visible to the model
 
-# TODO maybe add a tool to directly pretty print a specific nodes (maybe from multiple paths) for user,
+# TODO add a tool to directly pretty print a specific nodes (maybe from multiple paths) for user,
 # bypassing the model context window, to not clutter it
+# TODO add a tool for renaming nodes
+# TODO add a tool for merging nodes
+# TODO add a tool for copying nodes
+
+# TODO maybe add a tool for searching for nodes by name
+
+# TODO maybe add a tool for creating menu buttons to display commonly used modes, like todos
+
+# NOTE might think of a way to make the memory structure more intuitive for the model
