@@ -4,15 +4,32 @@ import json
 from memory import delete_last_logs, get_last_state, save_state
 from google.genai import types
 
+# TODO add print_subnodes_tool to print nodes to user (might avoid confusion with read_subnodes_tool)
+
 read_subnodes_tool = types.FunctionDeclaration(
     name='read_subnodes',
-    description="""Returns all subnodes of a specified node.""",
+    description="""Returns all subnodes of a specified node to the agent. The user does not see the output of this tool, it is used to read the memory tree and understand the current state of the memory.""",
     parameters=types.Schema(
         type='OBJECT',
         properties={
             'path': types.Schema(
                 type='string',
-                description='The path to the node.',
+                description='Path to the node.',
+            ),
+        },
+        required=['path'],
+    ),
+)
+
+print_subnodes_tool = types.FunctionDeclaration(
+    name='print_subnodes',
+    description='Prints all subnodes of a specified node to the user. This tool is used to display the memory tree to the user, if he demands it specifically.',
+    parameters=types.Schema(
+        type='OBJECT',
+        properties={
+            'path': types.Schema(
+                type='string',
+                description='Path to the node.',
             ),
         },
         required=['path'],
@@ -28,7 +45,7 @@ save_node_tool = types.FunctionDeclaration(
         properties={
             'path': {
                 'type': 'string',
-                'description': 'The path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created.',
+                'description': 'Path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created.',
             },
         },
     ),
@@ -43,11 +60,11 @@ move_nodes_tool = types.FunctionDeclaration(
         properties={
             'old_path': types.Schema(
                 type='string',
-                description='The path to the node to be moved.',
+                description='Path to the node to be moved.',
             ),
             'new_path': types.Schema(
                 type='string',
-                description='The path to the new location of the node.',
+                description='Path to the new location of the node.',
             ),
         },
     ),
@@ -62,7 +79,7 @@ delete_nodes_tool = types.FunctionDeclaration(
         properties={
             'path': types.Schema(
                 type='string',
-                description='The path to the node.',
+                description='Path to the node.',
             ),
         },
     ),
@@ -83,7 +100,7 @@ undo_n_changes_tool = types.FunctionDeclaration(
     ),
 )
 
-available_tools = [read_subnodes_tool, save_node_tool, move_nodes_tool, delete_nodes_tool, undo_n_changes_tool]
+available_tools = [read_subnodes_tool, print_subnodes_tool, save_node_tool, move_nodes_tool, delete_nodes_tool, undo_n_changes_tool]
 
 def read_subnodes(path):
 
@@ -95,6 +112,24 @@ def read_subnodes(path):
             return 'Node does not exist'
         state = state.get(key, {})
     return state
+
+def print_subnodes(path):
+    state = get_last_state()
+    keys = path.strip('/').split('/')
+    current = state
+    for key in keys:
+        if key not in current:
+            return 'Node does not exist'
+        current = current[key]
+    
+    if not current:
+        return 'Node is empty'
+    
+    output = ''
+    for subnode in current.keys():
+        output += subnode + '\n'
+    
+    return output.strip()
 
 def save_node(path):
 
@@ -129,7 +164,7 @@ def move_nodes(old_path, new_path):
     if old_path.rsplit('/',1)[0] == new_path:
         return 'New path already leads to the location of the node to be moved'
 
-    keys = new_path.strip('/').split('/')
+    keys = new_path.strip('/').spliPatht('/')
     current = state
     for key in keys[:-1]:
         if key not in current:
@@ -182,6 +217,7 @@ def undo_n_changes(n):
 
 available_functions = {
     'read_subnodes': read_subnodes,
+    'print_subnodes': print_subnodes,
     'save_node': save_node,
     'move_nodes': move_nodes,
     'delete_nodes': delete_nodes,
