@@ -1,5 +1,3 @@
-import json
-
 from google import genai
 from google.genai import types
 
@@ -15,7 +13,7 @@ memory_str = get_last_state()
 
 initial_prompt = '''
 # Overview
-You are a helpful and creative memory management and knowledge telegram bot, which receives requests from a user and performs actions based on the request, or answers questions.
+You are a helpful and creative memory management and knowledge Telegram bot, which receives requests from a user and performs actions based on the request, or answers questions.
 You have access to a hierarchical memory system in JSON format, where you can read, save, move and delete nodes in different locations.
 Paths are specified using a '/' delimiter, starting from the root.
 
@@ -49,8 +47,8 @@ If the user asks a general question, which does not require the usage of a tool,
 # Important:
 - Feel free to create new nodes in root if it helps you to organize the memory.
 - You can take multiple actions in one response.
-- You can use telegram markdown to format your messages.
 - You can undo some changes you did in memory by using the undo tool, if necessary.
+- You can use Telegram Markdown V2 formatting to style your text responses
 
 '''.format(memory_state=memory_str)
 
@@ -65,36 +63,39 @@ config = {
 
 def generate_response(role, input_message):
     
-    print(role + ': ' + str(input_message) + '\n')
-    contents.append(
-        types.Content(
-                role='user',
-                parts=[types.Part(text=input_message)],
+    try:
+        print(role + ': ' + str(input_message) + '\n')
+        contents.append(
+            types.Content(
+                    role='user',
+                    parts=[types.Part(text=input_message)],
+                )
             )
-        )
-    print('Generating response...\n')
+        print('Generating response...\n')
     
-    response = client.models.generate_content(
-            contents=contents,
-            model=MODEL_NAME,
-            config=config
-        )
-    message = response.candidates[0].content
-    if message.parts[0].text:
-        print('assistant: ' + message.parts[0].text + '\n')
-    else:
-        print('assistant: no response\n')
-    # prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
-    # gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
-    # print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
-    # print('Generated tokens / second: ' + str(gen_tokens_per_second))
-    contents.append(message)
-    return message
+        response = client.models.generate_content(
+                contents=contents,
+                model=MODEL_NAME,
+                config=config
+            )
+        
+        message = response.candidates[0].content
+        if message.parts[0].text:
+            print('assistant: ' + message.parts[0].text + '\n')
+        else:
+            print('assistant: no response\n')
+        # prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
+        # gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
+        # print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
+        # print('Generated tokens / second: ' + str(gen_tokens_per_second))
+        contents.append(message)
+        return message
+    except genai.errors.ServerError:
+        print('Server error occurred, retrying...\n')
+        return generate_response(role, input_message)
 
 # TODO maybe every new session (e. g. activated by menu button) with only some of the past messages visible to the model
 
-# TODO add a tool to directly pretty print a specific nodes (maybe from multiple paths) for user,
-# bypassing the model context window, to not clutter it
 # TODO add a tool for renaming nodes
 # TODO add a tool for merging nodes
 # TODO add a tool for copying nodes
@@ -105,8 +106,4 @@ def generate_response(role, input_message):
 
 # NOTE might think of a way to make the memory structure more intuitive for the model
 
-# TODO rename the project to NotetakerBot
-
 # NOTE might want to allow multiple paths on save_node(s) tool
-
-# TODO add total response time from request to last tool call for developement

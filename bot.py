@@ -99,7 +99,12 @@ def generate_llm_response(update: Update, context: CallbackContext, role, input)
 def send_telegram_message(update: Update, message) -> None:
 
     if message != '':
-        update.message.reply_text(message)
+        # Escape markdown characters in the message
+        if "*" in message:
+            message = message.replace(".", "\\.")
+            update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+        else:
+            update.message.reply_text(message)
     else:
         update.message.reply_text('assistant responded with an empty message')
 
