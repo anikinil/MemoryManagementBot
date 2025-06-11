@@ -63,7 +63,6 @@ def process(update: Update, context: CallbackContext) -> None:
     response = generate_llm_response(update, context, 'user', user_input)
 
     tool_calls = [part.function_call for part in response.parts if part.function_call is not None]
-    print('Tool calls: ' + str(tool_calls) + '\n')
     if tool_calls:
         function_output = ''
         for tool in tool_calls:

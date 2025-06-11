@@ -78,8 +78,6 @@ def generate_response(role, input_message):
             model=MODEL_NAME,
             config=config
         )
-    print("RESPONSE:\n")
-    print(response)
     message = response.candidates[0].content
     if message.parts[0].text:
         print('assistant: ' + message.parts[0].text + '\n')
