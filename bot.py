@@ -2,7 +2,7 @@ TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
 
 import logging
 
-from llm import generate_response, memory_str
+from llm import generate_response
 
 from functools import wraps
 
@@ -11,6 +11,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import threading
 import time
 
+from memory import init_memory
 from tools import available_functions
 
 logger = logging.getLogger(__name__)

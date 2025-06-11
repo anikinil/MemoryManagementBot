@@ -3,6 +3,7 @@ import json
 from google import genai
 from google.genai import types
 
+from memory import get_last_state
 import tools
 
 API_KEY = "AIzaSyDynKKQdiN0ZyW-AsCTRlT42IC6E0Kmnsg"
@@ -10,8 +11,7 @@ MODEL_NAME = "gemini-2.0-flash"
 
 client = genai.Client(api_key=API_KEY)
 
-with open('memory_log.json') as f:
-    memory_str = json.load(f)[-1]
+memory_str = get_last_state()
 
 initial_prompt = '''
 # Overview

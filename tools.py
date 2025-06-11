@@ -89,6 +89,7 @@ def read_subnodes(path):
 
     state = get_last_state()
     keys = path.strip('/').split('/')
+    print(state)
     for key in keys:
         if key not in state:
             return 'Node does not exist'
