@@ -2,101 +2,86 @@
 import json
 
 from memory import delete_last_logs, get_last_state, save_state
+from google.genai import types
 
+read_subnodes_tool = types.FunctionDeclaration(
+    name='read_subnodes',
+    description="""Returns all subnodes of a specified node.""",
+    parameters=types.Schema(
+        type='OBJECT',
+        properties={
+            'path': types.Schema(
+                type='string',
+                description='The path to the node.',
+            ),
+        },
+        required=['path'],
+    ),
+)
 
-read_subnodes_tool = {
-    'type': 'function',
-    'function': {
-        'name': 'read_subnodes',
-        'description': 'Returns all subnodes of a specified node.',
-        'parameters': {
-            'type': 'object',
-            'required': ['path'],
-            'properties': {
-                'path': {
-                    'type': 'string',
-                    'description': 'The path to the node.',
-                },
+save_node_tool = types.FunctionDeclaration(
+    name='save_node',
+    description='Saves a new node in the memory tree.',
+    parameters=types.Schema(
+        type='OBJECT',
+        required=['path'],
+        properties={
+            'path': {
+                'type': 'string',
+                'description': 'The path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created.',
             },
         },
-    },
-}
+    ),
+)
 
-save_node_tool = {
-    'type': 'function',
-    'function': {
-        'name': 'save_node',
-        'description': 'Saves a new node in the memory tree.',
-        'parameters': {
-            'type': 'object',
-            'required': ['path'],
-            'properties': {
-                'path': {
-                    'type': 'string',
-                    'description': 'The path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created.',
-                },
-            },
+move_nodes_tool = types.FunctionDeclaration(
+    name='move_nodes',
+    description='Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path. If the nodes at new_path do not exist yet, they will be created.',
+    parameters=types.Schema(
+        type='OBJECT',
+        required=['old_path', 'new_path'],
+        properties={
+            'old_path': types.Schema(
+                type='string',
+                description='The path to the node to be moved.',
+            ),
+            'new_path': types.Schema(
+                type='string',
+                description='The path to the new location of the node.',
+            ),
         },
-    },
-}
+    ),
+)
 
-move_nodes_tool = {
-    'type': 'function',
-    'function': {
-        'name': 'move_nodes',
-        'description': 'Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path. If the nodes at new_path do not exist yet, they will be created.',
-        'parameters': {
-            'type': 'object',
-            'required': ['old_path', 'new_path'],
-            'properties': {
-                'old_path': {
-                    'type': 'string',
-                    'description': 'The path to the node to be moved.',
-                },
-                'new_path': {
-                    'type': 'string',
-                    'description': 'The path to the new location of the node.',
-                },
-            },
+delete_nodes_tool = types.FunctionDeclaration(
+    name='delete_nodes',
+    description='Deletes a node and all of its subnodes from the memory tree.',
+    parameters=types.Schema(
+        type='OBJECT',
+        required=['path'],
+        properties={
+            'path': types.Schema(
+                type='string',
+                description='The path to the node.',
+            ),
         },
-    },
-}
+    ),
+)
 
-delete_nodes_tool = {
-    'type': 'function',
-    'function': {
-        'name': 'delete_nodes',
-        'description': 'Deletes a node and all of its subnodes from the memory tree.',
-        'parameters': {
-            'type': 'object',
-            'required': ['path'],
-            'properties': {
-                'path': {
-                    'type': 'string',
-                    'description': 'The path to the node.',
-                },
-            },
+undo_n_changes_tool = types.FunctionDeclaration(
+    name='undo_n_changes',
+    description='Undo the last n changes on the memory tree.',
+    parameters=types.Schema(
+        type='OBJECT',
+        required=['n'],
+        properties={
+            'n': types.Schema(
+                type='integer',
+                description='The number of changes to undo.',
+            ),
         },
-    },
-}
-
-undo_n_changes_tool = {
-    'type': 'function',
-    'function': {
-        'name': 'undo_n_changes',
-        'description': 'Undo the last n changes on the memory tree.',
-        'parameters': {
-            'type': 'object',
-            'required': ['n'],
-            'properties': {
-                'n': {
-                    'type': 'integer',
-                    'description': 'The number of changes to undo.',
-                },
-            },
-        },
-    },
-}
+    ),
+)
 
 available_tools = [read_subnodes_tool, save_node_tool, move_nodes_tool, delete_nodes_tool, undo_n_changes_tool]
 

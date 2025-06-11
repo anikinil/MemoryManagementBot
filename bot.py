@@ -61,29 +61,30 @@ def process(update: Update, context: CallbackContext) -> None:
 
     user_input = update.message.text
     response = generate_llm_response(update, context, 'user', user_input)
-    
-    tool_calls = response.message.tool_calls
+
+    tool_calls = [part.function_call for part in response.parts if part.function_call is not None]
+    print('Tool calls: ' + str(tool_calls) + '\n')
     if tool_calls:
         function_output = ''
         for tool in tool_calls:
-            if function_to_call := available_functions.get(tool.function.name):
-                print('Calling function: ' + tool.function.name)
-                print('Arguments: ' + str(tool.function.arguments))
-                function_output = function_to_call(**tool.function.arguments)
-                send_telegram_message(update, message='Function ' + tool.function.name + ': ' + str(tool.function.arguments))
+            if function_to_call := available_functions.get(tool.name):
+                print('Calling function: ' + tool.name)
+                print('Arguments: ' + str(tool.args))
+                function_output = function_to_call(**tool.args)
+                send_telegram_message(update, message='Function ' + tool.name + ': ' + str(tool.args))
                 # send_telegram_message(update, message='Output: ' + str(function_output))
             else:
                 function_output = 'function does not exist'
-                print('Function does not exist: ' + tool.function.name)
-                send_telegram_message(update, message='Function does not exist: ' + tool.function.name)
+                print('Function does not exist: ' + tool.name)
+                send_telegram_message(update, message='Function does not exist: ' + tool.name)
 
         if len(tool_calls) == 1:
             response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
-            send_telegram_message(update, message=(response_to_tool['message']['content']))
+            send_telegram_message(update, message=response_to_tool.parts[0].text)
         # print(memory_str)
     else:
         print("No tool calls\n")
-        send_telegram_message(update, message=(response['message']['content']))
+        send_telegram_message(update, message=response.parts[0].text)
 
 @send_typing_action
 def generate_llm_response(update: Update, context: CallbackContext, role, input) -> None:

@@ -1,19 +1,14 @@
 import json
-from ollama import chat
 
-from tools import available_tools
+from google import genai
+from google.genai import types
 
-# model = 'deepseek-r1:14b'         # not tool support; does thinking -> too slow
-# model = 'deepseek-coder-v2'       # no tool support
-# model = 'deepseek-r1:32b'         # no tool support; not enough ram
-# model = 'command-r7b'             # too small
-# model = 'llama3.1'                # too small
-# model = 'qwen2.5:14b'             # almost there in terms of reasoning, but does weird stuff from time to time
-# model = 'qwen2.5:32b'             # not enough ram
-# model = 'mistral-small:22b'       # too slow
-# model = 'mistral-small:24b'       # way too slow
-# model = 'mistral'                 # good, but pretty slow
-model = 'mistral-nemo'              # big context window (124k tokens), good reasoning, but pretty slow
+import tools
+
+API_KEY = "AIzaSyDynKKQdiN0ZyW-AsCTRlT42IC6E0Kmnsg"
+MODEL_NAME = "gemini-2.0-flash"
+
+client = genai.Client(api_key=API_KEY)
 
 with open('memory_log.json') as f:
     memory_str = json.load(f)[-1]
@@ -58,25 +53,44 @@ If the user asks a general question, which does not require the usage of a tool,
 
 '''.format(memory_state=memory_str)
 
-system_message = {'role': 'system', 'content': initial_prompt}
-messages = [system_message]
+contents = []
+                
+config = {
+    "system_instruction": initial_prompt,
+    "tools": [types.Tool(function_declarations=tools.available_tools)],
+    # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
+    # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
+}
 
 def generate_response(role, input_message):
     
     print(role + ': ' + str(input_message) + '\n')
-    messages.append({'role': role, 'content': input_message})
+    contents.append(
+        types.Content(
+                role='user',
+                parts=[types.Part(text=input_message)],
+            )
+        )
     print('Generating response...\n')
-    response = chat(model=model, messages=messages, tools=available_tools)
-    if response['message']['content']:
-        print('assistant: ' + response['message']['content'] + '\n')
+    
+    response = client.models.generate_content(
+            contents=contents,
+            model=MODEL_NAME,
+            config=config
+        )
+    print("RESPONSE:\n")
+    print(response)
+    message = response.candidates[0].content
+    if message.parts[0].text:
+        print('assistant: ' + message.parts[0].text + '\n')
     else:
         print('assistant: no response\n')
-    prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
-    gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
-    print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
-    print('Generated tokens / second: ' + str(gen_tokens_per_second))
-    messages.append(response['message'])
-    return response
+    # prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
+    # gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
+    # print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
+    # print('Generated tokens / second: ' + str(gen_tokens_per_second))
+    contents.append(message)
+    return message
 
 # TODO maybe every new session (e. g. activated by menu button) with only some of the past messages visible to the model
 
