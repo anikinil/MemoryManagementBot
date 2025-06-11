@@ -106,7 +106,6 @@ def read_subnodes(path):
 
     state = get_last_state()
     keys = path.strip('/').split('/')
-    print(state)
     for key in keys:
         if key not in state:
             return 'Node does not exist'
@@ -114,22 +113,21 @@ def read_subnodes(path):
     return state
 
 def print_subnodes(path):
-    state = get_last_state()
-    keys = path.strip('/').split('/')
-    current = state
-    for key in keys:
-        if key not in current:
-            return 'Node does not exist'
-        current = current[key]
-    
-    if not current:
-        return 'Node is empty'
-    
-    output = ''
-    for subnode in current.keys():
-        output += subnode + '\n'
-    
-    return output.strip()
+    subnodes = read_subnodes(path)
+    if subnodes == 'Node does not exist':
+        return subnodes
+    if not subnodes:
+        return 'No subnodes found'
+    def format_subnodes(subnodes, indent=0):
+        lines = []
+        for key, value in subnodes.items():
+            lines.append('    ' * indent + f'- {key}')
+            if isinstance(value, dict) and value:
+                lines.extend(format_subnodes(value, indent + 1))
+        return lines
+    if isinstance(subnodes, dict):
+        return '\n'.join(format_subnodes(subnodes))
+    return str(subnodes)
 
 def save_node(path):
 
@@ -143,8 +141,6 @@ def save_node(path):
             current[key] = {}
         current = current[key]
 
-    print(current)
-    print(keys[-1])
     current[keys[-1]] = {}
 
     if current == state:
@@ -164,14 +160,12 @@ def move_nodes(old_path, new_path):
     if old_path.rsplit('/',1)[0] == new_path:
         return 'New path already leads to the location of the node to be moved'
 
-    keys = new_path.strip('/').spliPatht('/')
+    keys = new_path.strip('/').split('/')
     current = state
     for key in keys[:-1]:
         if key not in current:
             current[key] = {}
         current = current[key]
-
-    print(old_path.split('/')[-1])
 
     current[keys[-1]] = {old_path.split('/')[-1]: sub, **(current[keys[-1]] if keys[-1] in current else {})}
 

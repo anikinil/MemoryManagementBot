@@ -65,6 +65,8 @@ def process(update: Update, context: CallbackContext) -> None:
 
     tool_calls = [part.function_call for part in response.parts if part.function_call is not None]
     if tool_calls:
+        print('\nTool calls:\n')
+        print(tool_calls)
         function_output = ''
         for tool in tool_calls:
             if function_to_call := available_functions.get(tool.name):
@@ -72,16 +74,19 @@ def process(update: Update, context: CallbackContext) -> None:
                 print('Arguments: ' + str(tool.args))
                 function_output = function_to_call(**tool.args)
                 send_telegram_message(update, message='Function ' + tool.name + ': ' + str(tool.args))
-                # send_telegram_message(update, message='Output: ' + str(function_output))
             else:
                 function_output = 'function does not exist'
                 print('Function does not exist: ' + tool.name)
                 send_telegram_message(update, message='Function does not exist: ' + tool.name)
 
         if len(tool_calls) == 1:
-            response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
-            send_telegram_message(update, message=response_to_tool.parts[0].text)
-        # print(memory_str)
+            if tool_calls[0].name == 'print_subnodes':
+                # If the tool is print_subnodes, we send the output directly
+                send_telegram_message(update, message=function_output)
+            else:
+                response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
+                if response_to_tool.parts[0].text:
+                    send_telegram_message(update, message=response_to_tool.parts[0].text)
     else:
         print("No tool calls\n")
         send_telegram_message(update, message=response.parts[0].text)
