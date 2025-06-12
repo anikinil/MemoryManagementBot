@@ -45,7 +45,7 @@ save_node_tool = types.FunctionDeclaration(
         properties={
             'path': {
                 'type': 'string',
-                'description': 'Path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created.',
+                'description': 'Path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created. Format: root/some_node/.../this_is_a_new_node',
             },
         },
     ),

@@ -107,12 +107,12 @@ def send_telegram_message(update: Update, message) -> None:
 
     if message != '':
         # Escape markdown characters in the message
-        if "*" in message:
-            message = message.replace(".", "\\.").replace("?", "\\?").replace("!", "\\!")
+        if "*" in message or "_" in message:
+            formatted_message = message.replace(",", "\\,").replace(".", "\\.").replace("?", "\\?").replace("!", "\\!")
             try:
-                update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+                update.message.reply_text(formatted_message, parse_mode=ParseMode.MARKDOWN_V2)
             except error.BadRequest as e:
-                update.message.reply_text("[markdown failed]\n\n" + message)
+                update.message.reply_text(message)
 
         else:
             update.message.reply_text(message)
@@ -160,9 +160,6 @@ def button_tap(update: Update, context: CallbackContext) -> None:
 
 
 def main() -> None:
-
-    print('\nBot started\n')
-    
     updater = Updater(TOKEN)
 
     # Get the dispatcher to register handlers
@@ -181,6 +178,8 @@ def main() -> None:
     # Start the Bot
     updater.start_polling()
 
+    print('\nBot started\n')
+    
     # Run the bot until you press Ctrl-C
     updater.idle()
 
