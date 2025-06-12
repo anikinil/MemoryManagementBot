@@ -6,13 +6,15 @@ from llm import generate_response
 
 from functools import wraps
 
-from telegram import Update, ChatAction, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
+from telegram import Update, ChatAction, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, error
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import threading
 import time
 
 from memory import init_memory
 from tools import available_functions
+
+from google import genai
 
 logger = logging.getLogger(__name__)
 
@@ -94,15 +96,24 @@ def process(update: Update, context: CallbackContext) -> None:
 @send_typing_action
 def generate_llm_response(update: Update, context: CallbackContext, role, input) -> None:
     
-    return generate_response(role, input)
+    try:
+        return generate_response(role, input)
+    except genai.errors.ServerError:
+        print('Server error occurred, retrying...\n')
+        return generate_response(role, input)
+
 
 def send_telegram_message(update: Update, message) -> None:
 
     if message != '':
         # Escape markdown characters in the message
         if "*" in message:
-            message = message.replace(".", "\\.")
-            update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+            message = message.replace(".", "\\.").replace("?", "\\?").replace("!", "\\!")
+            try:
+                update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+            except error.BadRequest as e:
+                update.message.reply_text("[markdown failed]\n\n" + message)
+
         else:
             update.message.reply_text(message)
     else:

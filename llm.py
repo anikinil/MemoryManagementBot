@@ -63,37 +63,33 @@ config = {
 
 def generate_response(role, input_message):
     
-    try:
-        print(role + ': ' + str(input_message) + '\n')
-        contents.append(
-            types.Content(
-                    role='user',
-                    parts=[types.Part(text=input_message)],
-                )
+    print(role + ': ' + str(input_message) + '\n')
+    contents.append(
+        types.Content(
+                role='user',
+                parts=[types.Part(text=input_message)],
             )
-        print('Generating response...\n')
-    
-        response = client.models.generate_content(
-                contents=contents,
-                model=MODEL_NAME,
-                config=config
-            )
-        
-        message = response.candidates[0].content
-        if message.parts[0].text:
-            print('assistant: ' + message.parts[0].text + '\n')
-        else:
-            print('assistant: no response\n')
-        # prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
-        # gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
-        # print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
-        # print('Generated tokens / second: ' + str(gen_tokens_per_second))
-        contents.append(message)
-        return message
-    except genai.errors.ServerError:
-        print('Server error occurred, retrying...\n')
-        return generate_response(role, input_message)
+        )
+    print('Generating response...\n')
 
+    response = client.models.generate_content(
+            contents=contents,
+            model=MODEL_NAME,
+            config=config
+        )
+    
+    message = response.candidates[0].content
+    if message.parts[0].text:
+        print('assistant: ' + message.parts[0].text + '\n')
+    else:
+        print('assistant: no response\n')
+    # prompt_tokens_per_second = response['prompt_eval_count'] / response['prompt_eval_duration'] * 1000000000
+    # gen_tokens_per_second = response['eval_count'] / response['eval_duration'] * 1000000000
+    # print('Prompt tokens / second: ' + str(prompt_tokens_per_second))
+    # print('Generated tokens / second: ' + str(gen_tokens_per_second))
+    contents.append(message)
+    return message
+    
 # TODO maybe every new session (e. g. activated by menu button) with only some of the past messages visible to the model
 
 # TODO add a tool for renaming nodes
