@@ -5,7 +5,7 @@ from util import format_subnodes
 def init_memory():
     f = open('memory_log.json', 'w')
     f.write('[{"root": {}}]')
-    f = open('memory_state.json', 'w')
+    f = open('memory_state.txt', 'w')
     f.write('{"root": {}}')
     f.close()
 
@@ -37,5 +37,5 @@ def delete_last_logs(n):
 
 def update_display():
     state = get_last_state()
-    with open('memory_state.json', 'w') as f:
+    with open('memory_state.txt', 'w') as f:
         json.dump(format_subnodes(state), f, indent=4)

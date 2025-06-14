@@ -1,0 +1,31 @@
+{
+    "root": {
+        "reading_list": {
+            "The Trial - Kafka": {},
+            "Le Miserables - Victor Hugo": {
+                "remember to get the book from J.": {}
+            }
+        },
+        "shopping": {
+            "groceries": "milk",
+            "IKEA": {
+                "lamp": {}
+            }
+        },
+        "iiiiiiiii": {},
+        "thoughts": {
+            "todo": {
+                "cleaning the kitchen": {}
+            }
+        },
+        "todo": {
+            "{}": {}
+        }
+    },
+    "": {
+        "iiiiiiiii": {},
+        "": {
+            "iiiiiiiii": {}
+        }
+    }
+}
