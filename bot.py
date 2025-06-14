@@ -11,7 +11,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 import threading
 import time
 
-from memory import init_memory
+from memory import update_display
 from tools import available_functions
 
 from google import genai
@@ -83,12 +83,12 @@ def process(update: Update, context: CallbackContext) -> None:
 
         if len(tool_calls) == 1:
             if tool_calls[0].name == 'print_subnodes':
-                # If the tool is print_subnodes, we send the output directly
                 send_telegram_message(update, message=function_output)
             else:
                 response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
                 if response_to_tool.parts[0].text:
                     send_telegram_message(update, message=response_to_tool.parts[0].text)
+        update_display()
     else:
         print("No tool calls\n")
         send_telegram_message(update, message=response.parts[0].text)

@@ -1,8 +1,8 @@
 
-import json
-
 from memory import delete_last_logs, get_last_state, save_state
 from google.genai import types
+
+from util import format_subnodes
 
 # TODO add print_subnodes_tool to print nodes to user (might avoid confusion with read_subnodes_tool)
 
@@ -45,7 +45,7 @@ save_node_tool = types.FunctionDeclaration(
         properties={
             'path': {
                 'type': 'string',
-                'description': 'Path to the node in the memory tree. If the nodes in the path do not exist yet, they will be created. Format: root/some_node/.../this_is_a_new_node',
+                'description': 'Path to the new node in the memory tree. If the nodes in the path do not exist yet, they will be created. Format: root/some_node/.../this_is_a_new_node',
             },
         },
     ),
@@ -118,13 +118,6 @@ def print_subnodes(path):
         return subnodes
     if not subnodes:
         return 'No subnodes found'
-    def format_subnodes(subnodes, indent=0):
-        lines = []
-        for key, value in subnodes.items():
-            lines.append('    ' * indent + f'- {key}')
-            if isinstance(value, dict) and value:
-                lines.extend(format_subnodes(value, indent + 1))
-        return lines
     if isinstance(subnodes, dict):
         return '\n'.join(format_subnodes(subnodes))
     return str(subnodes)

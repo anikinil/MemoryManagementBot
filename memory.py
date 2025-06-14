@@ -1,8 +1,12 @@
 import json
 
+from util import format_subnodes
+
 def init_memory():
     f = open('memory_log.json', 'w')
     f.write('[{"root": {}}]')
+    f = open('memory_state.json', 'w')
+    f.write('{"root": {}}')
     f.close()
 
 def get_last_state():
@@ -30,3 +34,8 @@ def delete_last_logs(n):
         d.pop()
     with open('memory_log.json', 'w') as f:
         json.dump(d, f, indent=4)
+
+def update_display():
+    state = get_last_state()
+    with open('memory_state.json', 'w') as f:
+        json.dump(format_subnodes(state), f, indent=4)
