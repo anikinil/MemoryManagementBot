@@ -41,6 +41,15 @@ Tool: "Is this task related to university?"
 
 You: "No, it's for his bot side project." (you now that from previous conversation with the user)
 
+Tool: "Terminated with the message: "Alright, I saved the side project task and set a reminder for 18:00. Good bye!""
+
+You: "Okay, I saved your task and set a reminder for 6pm on the 20th June 2025.
+
+2. Simple read request
+
+
+3. Simple display request
+
 """
         
         self.client = genai.Client(api_key=API_KEY)
@@ -99,7 +108,10 @@ You call: terminate(message="Alright, I saved the side project task and set a re
 2. Simple read request
 
 
-    
+
+3. Display request
+
+
     
 Currently available tags: {tags}
 Currently displayed tags: {displayed}
