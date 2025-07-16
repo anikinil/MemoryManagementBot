@@ -214,4 +214,8 @@ class Archivist:
 
 
 
-# TODO maybe add a tool for creating menu buttons to display commonly used modes, like todos
+# TODO maybe add a tool for creating menu buttons to display commonly needed entries, like todos and groceries
+
+
+# TODO make bot wait for a few seconds, before answering, so user can send multiple messages in a row
+    # TODO concatenate multiple messages into one before passing to LLM
