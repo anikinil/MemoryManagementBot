@@ -4,7 +4,6 @@ from google.genai import types
 
 from util import format_subnodes
 
-# TODO add print_subnodes_tool to print nodes to user (might avoid confusion with read_subnodes_tool)
 
 read_subnodes_tool = types.FunctionDeclaration(
     name='read_subnodes',

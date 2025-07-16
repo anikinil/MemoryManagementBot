@@ -49,24 +49,29 @@ You: "Okay, I saved your task and set a reminder for 6pm on the 20th June 2025.
 
 User: "What plant related stuff did I plan for the weekend?"
 
-You: "Let me check."
+You: "Let me check..."
 You call: send_request(request="Please retrieve all plant related tasks planned for the weekend.")
 
-Tool: "The user has the following plant related tasks planned for the weekend: Water the plants on Saturday, repot the cactus, buy universal soil."
+Tool: "The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)."
 
-You: "Here is what I found: Water the plants on Saturday, repot the cactus, buy universal soil."
+You: "Here is what I found: Order seeds on Saturday at 17:00 and buy universal soil on Sunday."
 
 3. Display request
 
-User: "User needs you to display all his groceries, but leave out the ones needed for the cake only."
+User: "I need you to display all his groceries, but leave out the ones needed for the cake only."
 
 You: "Right away."
-You call: send_request(request="Please display the grocery list, excluding items related to the cake, the user planned to bake.")
+You call: send_request(request="Please display the grocery list, excluding items only related to the cake, the user planned to bake.")
 
-Tool: "Displaying all groceries, excluding: flour, sugar, butter, chocolate."
+Tool: "Now displaying requested groceries, excluding flour and cinnamon."
 
-You: "Alright, displaying all groceries, excluding the cake ingredients."
+You: "Alright, requested groceries are displayed now, excluded are flour and cinnamon."
 
+
+# Current state
+
+Current date: {date}
+Current time: {time}
 """
         
         self.client = genai.Client(api_key=API_KEY)
@@ -87,25 +92,25 @@ class RequestHandler:
         self.date = date
         self.time = time
         
-        # TODO chose the best time format and correct it in the prompt
-        # TODO add an example with multiple sequential memory changes
+        # TODO update all time and date related info to current format
+        # TODO (?) add an example with multiple sequential memory changes
         self.initial_prompt = """You are a helpful memory request handling assistant. You receive a memory request in natural language from another LLM which functions as a chat agent which communicates with the user. After receiving a request you execute it and then terminate. You only communicate to the chat agent, who is marked by the role "user".
 
 The memory is implemented as a JSON array of entries, each of which contains one note in string format. Each entry contains an array of tags. Tags help to structure the entries by reflecting the contents of notes and grouping them by topics. You use these tags to retrieve and save notes in the memory. You can use already existing tags or create new ones.
 
-Each entry also has the "time" property. This property contains a string with date and/or time, tied to the note. You use it whenever there is a time aspect to the request, that needs to be accounted for.
+Each entry also has the "times" property. This property contains a string with date and/or time, tied to the note. You use it whenever there is a time aspect to the request, that needs to be accounted for.
 
-There are also special entries, which are displayed to the user directly. You may be asked, to add some items to the displayed group or to remove them from it. You do this, by setting or unsetting some tags as displayed tags using the corresponding tool.
+There are also special entries, which are displayed to the user directly. You may be asked, to add some items to the displayed group or to remove them from it. You do this, by adding the "<display>" tag to the entry via the "display" tool.
 
 To execute the memory request, you use the provided tools.
 
-The tools return values via messages with the role "tool".
+The tools return values via messages with the role "tool".want
 
 You always use reasoning, before performing any actions, so that the memory stays consistent and the user receives the most relevant information. When necessary, you ask clarifying questions using the corresponding tool, to ask the chat assistant to give you more detail on the request.
 
 # Example interactions
 
-1. Simple save request:
+1. Save request:
 
 User: "The user needs to read about RAGs tomorrow evening."
 
@@ -122,21 +127,63 @@ Tool: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", 
 You: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
 You call: terminate(message="Alright, I saved the side project task and set a reminder for 18:00. Good bye!")
     
-2. Simple read request
+2. Read request
 
+User: "What plants related stuff did the user plan for the weekend?"
 
+You: "Okay, the user wants me to retrieve tasks, that are related to plants and are planed for the weekend. Today is Wednesday, so the next weekend includes the dates in three and four days, so I am looking for entries on these days. Now, there are no tags directly related to plants, but there is "potting soil" and "seeds", so maybe I should try these. Also, I should include the "TODO" tag, to get entries that are actual tasks and not other types of nodes. I will start with the date."
+You call: get(tags=[seeds, potting soil, TODO], dates=[21.06.2025, 22.06.2025], time=[]) // empty time array means, that any time on these dates is relevant
+
+Tool: [{
+    content: "Should order seeds on Saturday",
+    tags: ["seeds", "TODO"],
+    dates: ["21.06.2025"],
+    times: ["17:00"]
+}, 
+{
+    content: "Where to get monstera seeds?",
+    tags: ["seeds", "thoughts"],
+    dates: [],
+
+    times: []
+},
+{
+    content: "Buy universal soil",
+    tags: ["potting soil", "TODO"],
+    dates: ["22.06.2025"],
+    times: []
+}]
+
+You: "The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)." (you do not mention the monstera entry, since it is not a task, so not what the user asked for)
 
 3. Display request
 
+User: "Please display the grocery list, excluding items only related to the cake, the user planned to bake."
 
+You: "Okay, I need to display the grocery list, but exclude items related to the cake only. I do not see any other tags related to cake apart from "cake", so I will use the "groceries" tag to retrieve all groceries and then exclude the items marked with the "cake" tag.
+
+You call: display(tags=["groceries"], exclude_tags=["cakecake"])
     
+Tool: 
+
+"Displaying: [
+    {content: "Bread", tags: ["groceries"], dates: [24.06.2025], times: []},
+    {content: "Coffee", tags: ["groceries"], dates: [23.06.2025], times: []},
+    {content: "Carrots", tags: ["groceries"], dates: [], times: []}
+]
+Excluding: [
+    {content: "Flour", tags: ["cake", "groceries"], dates: [24.06.2025], times: []},
+    {content: "Cinnamon", tags: ["cake", "groceries"], dates: [24.06.2025], times: []}
+]"
+
+You: "Alright, now displaying requested groceries, excluding flour and cinnamon."
+
+# Current state
+
 Currently available tags: {tags}
-Currently displayed tags: {displayed}
 
 Current date: {date}
 Current time: {time}
-
-
 """ 
         self.client = genai.Client(api_key=API_KEY)
 
@@ -165,13 +212,6 @@ class Archivist:
         }
 
 
-    
-# TODO add a tool for renaming nodes
-# TODO add a tool for merging nodes
-# TODO add a tool for copying nodes
 
-# TODO maybe add a tool for searching for nodes by name
 
 # TODO maybe add a tool for creating menu buttons to display commonly used modes, like todos
-
-# NOTE might want to allow multiple paths on save_node(s) tool
