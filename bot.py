@@ -2,7 +2,7 @@ TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
 
 import logging
 
-from llm import generate_response
+from llm import ChatAssistant, RequestHandler
 
 from functools import wraps
 
@@ -61,6 +61,9 @@ def send_typing_action(func):
     return command_func
 
 def process(update: Update, context: CallbackContext) -> None:
+
+    # TODO make bot wait for a few seconds, before answering, so user can send multiple messages in a row
+        # TODO concatenate multiple messages into one before passing to LLM
 
     user_input = update.message.text
     response = generate_llm_response(update, context, 'user', user_input)

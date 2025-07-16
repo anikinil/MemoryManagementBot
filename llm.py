@@ -9,7 +9,10 @@ MODEL_NAME = "gemini-2.0-flash"
 
 class ChatAssistant:
     
-    def __init__(self):
+    def __init__(self, date, time):
+        
+        self.date = date
+        self.time = time
         
         # TODO try to also explain the way memory is implemented (for comparison)
         self.initial_prompt = """You are a helpful memory management assistant. You receive instructions from the user, formulate a good request in natural language, and pass it to another LLM agent which has direct access to the memory. This agent handles your memory requests.
@@ -85,8 +88,9 @@ Current time: {time}
         }
 
 class RequestHandler:
-    def __init__(self, tags, displayed, date, time):
-        
+    def __init__(self, chat_assistant, tags, displayed, date, time):
+
+        self.chat_assistant = chat_assistant
         self.tags = tags
         self.displayed = displayed
         self.date = date
@@ -215,7 +219,3 @@ class Archivist:
 
 
 # TODO maybe add a tool for creating menu buttons to display commonly needed entries, like todos and groceries
-
-
-# TODO make bot wait for a few seconds, before answering, so user can send multiple messages in a row
-    # TODO concatenate multiple messages into one before passing to LLM
