@@ -1,0 +1,14 @@
+[
+    {
+        "content": "This is a test entry",
+        "tags": ["test"],
+        "dates": [],
+        "times": []
+    },
+    {
+        "content": "This is another test entry",
+        "tags": ["test", "other"],
+        "dates": ["25.06.2025"],
+        "times": []
+    }
+]

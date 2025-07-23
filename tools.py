@@ -22,7 +22,6 @@ class ChatAssistTools:
             required=['message']
         ),
     )
-
     # tool
     def request(message):
 
@@ -33,6 +32,8 @@ class ChatAssistTools:
 
         request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
         response = request_handler.handle_request(message)
+
+        
 
         # TODO continue implementing
 

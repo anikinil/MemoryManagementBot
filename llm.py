@@ -89,6 +89,7 @@ Current time: {time}
         
         self.client = genai.Client(api_key=API_KEY)
         
+        self.tools = tools.ChatAssistTools()
 
         self.config = {
             "system_instruction": self.initial_prompt,
@@ -241,6 +242,8 @@ Current date: {date}
 Current time: {time}
 """ 
         self.client = genai.Client(api_key=API_KEY)
+
+        self.tools = tools.RequestHandlerTools()
 
         self.config = {
             "system_instruction": self.initial_prompt,
