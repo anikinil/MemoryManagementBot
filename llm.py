@@ -7,6 +7,8 @@ import util
 
 # TODO change "You" to "Model" in initial prompts
 
+# TODO if anything goes wrong (agent retries same request) stop and reinitialize the agent with same input
+
 API_KEY = "AIzaSyDynKKQdiN0ZyW-AsCTRlT42IC6E0Kmnsg"
 MODEL_NAME = "gemini-2.0-flash"
 
@@ -131,20 +133,22 @@ Current time: """ + time + """
         curr_date = util.get_curr_date()
         curr_time = util.get_curr_time()
 
-        request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
+        request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time, self)
         response_content = request_handler.handle_request(message)
         
         print("RESPONSE_CONTENT from request_handler.handle_request in request (tool) in CAA")
         print(response_content)
+        
+        return response_content.text if response_content else "No response generated."
 
-        message = response_content.parts[0].text
-        tool_call = response_content.parts[1].function_call
-        if tool_call == "clarify":
-            return "Please clarify: " + (message if message else "(no message)")
-        elif tool_call == "terminate":
-            return "Terminated with: " + (message if message else "(no message)")
-        else:
-            print("RequestHandlerAgent was supposed to call clarify or terminate but did neither: " + (message if message else "(no message)"))
+        # message = response_content.parts[0].text
+        # tool_call = response_content.parts[1].function_call
+        # if tool_call == "clarify":
+        #     return "Please clarify: " + (message if message else "(no message)")
+        # elif tool_call == "terminate":
+        #     return "Terminated with: " + (message if message else "(no message)")
+        # else:
+        #     print("RequestHandlerAgent was supposed to call clarify or terminate but did neither: " + (message if message else "(no message)"))
 
     def handle_user_input(self, user_input):
         """
@@ -176,16 +180,43 @@ Current time: """ + time + """
             print('Server error occurred, retrying...\n')
             return self.handle_user_input(user_input)
 
+    def answer_clarification_request(self, question):
+        """
+        Answers the clarification request from the RequestHandlerAgent.
+        """
+        self.messages.append({
+            "role": "tool",
+            "content": question
+        })
+        try:
+            response = self.client.models.generate_content(
+                contents=[types.Content(role="model", parts=[types.Part(text=question)])],
+                model=MODEL_NAME,
+                config=self.config
+            )
+            print("\nRESPONSE in handle_clarification_request in ChatAssistantAgent:")
+            print(response)
+            response_content = response.candidates[0].content.parts[0]
+            self.messages.append({
+                "role": "model",
+                "content": response_content
+            })
+            return response_content.text
+        except genai.errors.ServerError:
+            print('Server error occurred, retrying...\n')
+            return self.handle_clarification_request(question)
+
 
 
 class RequestHandlerAgent:
-    def __init__(self, tags, displayed_tags, date, time):
+    def __init__(self, tags, displayed_tags, date, time, chat_assistant_agent):
 
         self.tags = tags
         self.displayed_tags = displayed_tags
         self.date = date
         self.time = time
-        
+        self.chat_assistant_agent = chat_assistant_agent
+
         # TODO (?) add an example with multiple sequential memory changes
         self.initial_prompt = """You are a helpful memory request handling assistant. You receive a memory request in natural language from another LLM which functions as a chat agent which communicates with the user. After receiving a request you execute it and then terminate. You only communicate to the chat agent, who is marked by the role "user".
 
@@ -321,6 +352,7 @@ Current date: """ + date + """
 Current time: """ + time + """
 """ 
         self.client = genai.Client(api_key=API_KEY)
+        self.messages = []
 
         self.clarify_tool = types.FunctionDeclaration(
             name='clarify',
@@ -466,11 +498,12 @@ Current time: """ + time + """
         
         
     # tool
-    def clarify(question):
+    def clarify(self, question):
         """
         Asks the chat assistant for clarification on the request.
         """
-        return f"Please clarify your request: {question}"
+        clarification = self.chat_assistant_agent.answer_clarification_request(f"Please clarify your request: {question}")
+        return clarification
 
         
     # tool
@@ -520,11 +553,12 @@ Current time: """ + time + """
     
     def handle_request(self, request):
         """
-        Handles the request by generating a response using the LLM.
+        Handles the request from ChatAssistantAgent.
         """
         try:
             print("REQUEST in handle_request in RequestHandlerAgent")
             print(request)
+            self.messages.append({"role": "user", "content": request})
             response = self.client.models.generate_content(
                 contents=[types.Content(role="user", parts=[types.Part(text=request)])],
                 model=MODEL_NAME,
@@ -534,34 +568,42 @@ Current time: """ + time + """
             print(response)
             response_content = response.candidates[0].content
             
-            response_tool_call = None
+            tool_call = None
             # sometimes tool call is already in the 1st (and only) part, but sometimes it comes in 2nd part
             if response_content.parts[0].function_call is not None:
-                response_tool_call = response_content.parts[0].function_call
+                tool_call = response_content.parts[0].function_call
             elif len(response_content.parts) > 1 and response_content.parts[1].function_call is not None:
-                response_tool_call = response_content.parts[1].function_call
+                tool_call = response_content.parts[1].function_call
 
-            if response_tool_call == "terminate":
-                print("TERMINATE in handle_request in RHA")
-                return response_content
-            elif response_tool_call == "clarify":
-                print("CLARIFY in handle_request in RHA")
-                return response_content
-            elif response_tool_call is not None:
-                tool_response = self.execute_memory_action(response_tool_call)
+            if tool_call is None:
+                return self.handle_request(request)  # Retry the request if no tool call was found
+            
+            # if tool_calls correctly contains the tool call, append it to the messages
+            self.messages.append({
+                "role": "model",
+                "content": response_content.parts[0]
+            })
+
+            if tool_call.name == "terminate":
+                print("TERMINATED with: " + (response_content.parts[0].text if response_content.parts else "(no message)"))
+                return "Terminated with: " + (response_content.parts[0].text if response_content.parts else "(no message)")
+            elif tool_call.name == "clarify":
+                question = tool_call.args.get('question', '')
+                clarification = self.clarify(question)
+                return self.handle_request(clarification)  # Retry with clarification
             else:
-                print("NO TOOL CALL DETECTED in handle_request in RHA")
+                tool_response = self.execute_memory_action(tool_call)
+                return self.handle_request(tool_response)  # Retry with the tool response
 
-            return response_content
         except genai.errors.ServerError:
-            self.handle_request(request)  # Retry the request in case of a server error
+            return self.handle_request(request)  # Retry the request in case of a server error
 
     # is called from handle_request, when a memory action is detected in the response of the RequestHandlerAgent
     def execute_memory_action(self, tool_call):
         
         print("\nREQUESTED ACTION is", tool_call)
-
-        return "" # should return the tool response(s)
+        
+        return "bla bla bla" # should return the tool response(s)
 
 
 # TODO try without the archivist first
