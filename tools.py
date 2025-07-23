@@ -1,211 +1,221 @@
 
-from memory import delete_last_logs, get_last_state, save_state
+from llm import RequestHandlerAgent
 from google.genai import types
 
-from util import format_subnodes
+from memory import get_tags, get_displayed_tags
+from util import get_curr_date, get_curr_time
 
 
-read_subnodes_tool = types.FunctionDeclaration(
-    name='read_subnodes',
-    description="""Returns all subnodes of a specified node to the agent. The user does not see the output of this tool, it is used to read the memory tree and understand the current state of the memory.""",
-    parameters=types.Schema(
-        type='OBJECT',
-        properties={
-            'path': types.Schema(
-                type='string',
-                description='Path to the node.',
-            ),
-        },
-        required=['path'],
-    ),
-)
+class ChatAssistTools:
 
-print_subnodes_tool = types.FunctionDeclaration(
-    name='print_subnodes',
-    description='Prints all subnodes of a specified node to the user. This tool is used to display the memory tree to the user, if he demands it specifically.',
-    parameters=types.Schema(
-        type='OBJECT',
-        properties={
-            'path': types.Schema(
-                type='string',
-                description='Path to the node.',
-            ),
-        },
-        required=['path'],
-    ),
-)
-
-save_node_tool = types.FunctionDeclaration(
-    name='save_node',
-    description='Saves a new node in the memory tree.',
-    parameters=types.Schema(
-        type='OBJECT',
-        required=['path'],
-        properties={
-            'path': {
-                'type': 'string',
-                'description': 'Path to the new node in the memory tree. If the nodes in the path do not exist yet, they will be created. Format: root/some_node/.../this_is_a_new_node',
+    request_tool = types.FunctionDeclaration(
+        name='request',
+        description="""Sends your memory request to the request handler agent.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'message': types.Schema(
+                    type='string',
+                    description='Request message in natural language',
+                )
             },
-        },
-    ),
-)
+            required=['message']
+        ),
+    )
 
-move_nodes_tool = types.FunctionDeclaration(
-    name='move_nodes',
-    description='Moves a node and all of its subnodes to a new location in the memory tree. Node at old_path becomes the child of the node at new_path. If the nodes at new_path do not exist yet, they will be created.',
-    parameters=types.Schema(
-        type='OBJECT',
-        required=['old_path', 'new_path'],
-        properties={
-            'old_path': types.Schema(
-                type='string',
-                description='Path to the node to be moved.',
-            ),
-            'new_path': types.Schema(
-                type='string',
-                description='Path to the new location of the node.',
-            ),
-        },
-    ),
-)
+    # tool
+    def request(message):
 
-delete_nodes_tool = types.FunctionDeclaration(
-    name='delete_nodes',
-    description='Deletes a node and all of its subnodes from the memory tree.',
-    parameters=types.Schema(
-        type='OBJECT',
-        required=['path'],
-        properties={
-            'path': types.Schema(
-                type='string',
-                description='Path to the node.',
-            ),
-        },
-    ),
-)
+        tags = get_tags()
+        displayed = get_displayed_tags()
+        curr_date = get_curr_date()
+        curr_time = get_curr_time()
 
-undo_n_changes_tool = types.FunctionDeclaration(
-    name='undo_n_changes',
-    description='Undo the last n changes on the memory tree.',
-    parameters=types.Schema(
-        type='OBJECT',
-        required=['n'],
-        properties={
-            'n': types.Schema(
-                type='integer',
-                description='The number of changes to undo.',
-            ),
-        },
-    ),
-)
+        request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
+        response = request_handler.handle_request(message)
 
-available_tools = [read_subnodes_tool, print_subnodes_tool, save_node_tool, move_nodes_tool, delete_nodes_tool, undo_n_changes_tool]
+        # TODO continue implementing
 
-def read_subnodes(path):
+    def get_tools(self):
+        return [self.request_tool]
 
-    state = get_last_state()
-    keys = path.strip('/').split('/')
-    for key in keys:
-        if key not in state:
-            return 'Node does not exist'
-        state = state.get(key, {})
-    return state
+    
+class RequestHandlerTools:
+    
+    
+    clarify_tool = types.FunctionDeclaration(
+        name='clarify',
+        description="""Asks the chat assistant for clarification on the request.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'question': types.Schema(
+                    type='string',
+                    description='Clarification question in natural language',
+                )
+            },
+            required=['question']
+        ),
+    )
+    # tool
+    def clarify(question):
+        """
+        Asks the chat assistant for clarification on the request.
+        """
+        # TODO implement the clarification logic
+        pass
+    
+    save_tool = types.FunctionDeclaration(
+        name='save',
+        description="""Saves the provided entry with the specified tags, date, and time.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'content': types.Schema(
+                    type='string',
+                    description='Entry to be saved',
+                ),
+                'tags': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of tags to associate with the entry',
+                ),
+                'date': types.Schema(
+                    type='string',
+                    description='Date in the format DD.MM.YYYY',
+                ),
+                'time': types.Schema(
+                    type='string',
+                    description='Time in the format HH:MM',
+                )
+            },
+            required=['content', 'tags', 'date', 'time']
+        )
+    )
+    # tool
+    def save(content, tags, date, time):
+        """
+        Saves the provided content with the specified tags, date, and time.
+        """
+        # TODO implement the saving logic
+        pass
 
-def print_subnodes(path):
-    subnodes = read_subnodes(path)
-    if subnodes == 'Node does not exist':
-        return subnodes
-    if not subnodes:
-        return 'No subnodes found'
-    if isinstance(subnodes, dict):
-        return '\n'.join(format_subnodes(subnodes))
-    return str(subnodes)
+    read_tool = types.FunctionDeclaration(
+        name='read',
+        description="""Retrieves entries based on the specified tags, dates, and times.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'tags': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of tags to filter entries',
+                ),
+                'dates': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of dates in the format DD.MM.YYYY',
+                ),
+                'time': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of times in the format HH:MM',
+                )
+            },
+            required=['tags', 'dates', 'time']
+        )
+    )
+    # tool
+    # TODO add ids to each entry, so each can be referenced individually
+    def read(tags, dates, time):
+        """
+        Retrieves entries based on the specified tags, dates, and times.
+        """
+        # TODO implement the reading logic
+        pass
+    
+    delete_tool = types.FunctionDeclaration(
+        name='delete',
+        description="""Deletes entries based on the specified IDs. Can only be called after a read request.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'ids': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of IDs of entries to delete',
+                )
+            },
+            required=['ids']
+        )
+    )
+    # tool
+    def delete(ids):
+        """
+        Deletes entries based on the specified IDs.
+        """
+        # TODO implement the deletion logic
+        pass
 
-def save_node(path):
-
-    state = get_last_state()
-
-    keys = path.split('/')
-    current = state
-
-    for key in keys[:-1]:
-        if key not in current:
-            current[key] = {}
-        current = current[key]
-
-    current[keys[-1]] = {}
-
-    if current == state:
-        return 'Node already exists'
-    else:
-        save_state(state)
-        return 'Node saved'
-
-def move_nodes(old_path, new_path):
-
-    state = get_last_state()
-
-    sub = read_subnodes(old_path)
-    if sub == 'Node does not exist':
-        return 'Node does not exist: ' + old_path
-
-    if old_path.rsplit('/',1)[0] == new_path:
-        return 'New path already leads to the location of the node to be moved'
-
-    keys = new_path.strip('/').split('/')
-    current = state
-    for key in keys[:-1]:
-        if key not in current:
-            current[key] = {}
-        current = current[key]
-
-    current[keys[-1]] = {old_path.split('/')[-1]: sub, **(current[keys[-1]] if keys[-1] in current else {})}
-
-    keys = old_path.strip('/').split('/')
-    current = state
-    for key in keys[:-1]:
-        if key not in current:
-            return 'Node does not exist'
-        current = current[key]
-
-    if keys[-1] not in current:
-        return 'Node does not exist'
-
-    current.pop(keys[-1], None)
-
-    save_state(state)
-    return 'Nodes moved'
-
-def delete_nodes(path):
-    state = get_last_state()
-
-    keys = path.strip('/').split('/')
-    sub_state = state
-    for key in keys[:-1]:
-        if key not in sub_state:
-            return 'Node does not exist'
-        sub_state = sub_state[key]
-
-    if keys[-1] not in sub_state:
-        return 'Node does not exist'
-
-    sub_state.pop(keys[-1], None)
-
-    save_state(state)
-    return 'Node deleted'
-        
-def undo_n_changes(n):
-    try:
-        delete_last_logs(n)
-    except ValueError as e:
-        return 'The memory has been changed less than ' + str(n) + ' times'
-    return 'Last ' + str(n) + ' changes undone'
-
-available_functions = {
-    'read_subnodes': read_subnodes,
-    'print_subnodes': print_subnodes,
-    'save_node': save_node,
-    'move_nodes': move_nodes,
-    'delete_nodes': delete_nodes,
-    'undo_n_changes': undo_n_changes,
-}
+    display_tool = types.FunctionDeclaration(
+        name='display',
+        description="""Displays entries for the user based on the specified tags and optionally excludes entries with the tags specified in exclude_tags.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'tags': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of tags to include in the display',
+                ),
+                'additive': types.Schema(
+                    type='boolean',
+                    description='If true, only entries with all specified tags are displayed (AND); if false, entries with any of the specified tags are displayed (OR)',
+                ),
+                'exclude_tags': types.Schema(
+                    type='array',
+                    items=types.Schema(type='string'),
+                    description='List of tags to exclude from the display',
+                )
+            },
+            required=['tags', 'additive']
+        )
+    )
+    # tool
+    def display(tags, additive, exclude_tags=None):
+        """
+        Displays entries based on the specified tags and excludes entries with the specified tags.
+        """
+        # TODO implement the display logic
+        pass
+    
+    undo_tool = types.FunctionDeclaration(
+        name='undo',
+        description="""Undoes the last n changes performed on the memory. Read and display calls are not considered changes.""",
+        parameters=types.Schema(
+            type='OBJECT',
+            properties={
+                'n': types.Schema(
+                    type='integer',
+                    description='Number of changes to undo',
+                )
+            },
+            required=['n']
+        )
+    )
+    # tool
+    def undo(n):
+        """
+        Undoes the last n changes performed on the memory.
+        """
+        # TODO implement the undo logic
+        pass
+    
+    def get_tools(self):
+        return [self.clarify_tool,
+                self.save_tool,
+                self.read_tool,
+                self.delete_tool,
+                self.display_tool,
+                self.undo_tool
+        ]

@@ -1,8 +1,8 @@
 
-def format_subnodes(subnodes, indent=0):
-        lines = []
-        for key, value in subnodes.items():
-            lines.append('    ' * indent + f'- {key}')
-            if isinstance(value, dict) and value:
-                lines.extend(format_subnodes(value, indent + 1))
-        return lines
+def get_curr_date():
+    from datetime import datetime
+    return datetime.now().strftime("%d.%m.%Y")
+
+def get_curr_time():
+    from datetime import datetime
+    return datetime.now().strftime("%H:%M")
