@@ -291,15 +291,6 @@ Current time: {time}
 """ 
         self.client = genai.Client(api_key=API_KEY)
 
-        self.tools = tools.request_handler_tools
-
-        self.config = {
-            "system_instruction": self.initial_prompt,
-            "tools": [types.Tool(function_declarations=tools.available_tools)],
-            # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
-            # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
-        }
-        
         clarify_tool = types.FunctionDeclaration(
             name='clarify',
             description="""Asks the chat assistant for clarification on the request.""",
@@ -466,15 +457,23 @@ Current time: {time}
             """
             # TODO implement the undo logic
             pass
-            
+                
         request_handler_tools = [
-            clarify_tool,
-            save_tool,
-            read_tool,
-            delete_tool,
-            display_tool,
-            undo_tool
+            self.clarify_tool,
+            self.save_tool,
+            self.read_tool,
+            self.delete_tool,
+            self.display_tool,
+            self.undo_tool
         ]
+        
+        self.config = {
+            "system_instruction": self.initial_prompt,
+            "tools": [types.Tool(function_declarations=request_handler_tools)],
+            # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
+            # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
+        }
+        
     
     def handle_request(self, request):
         """
