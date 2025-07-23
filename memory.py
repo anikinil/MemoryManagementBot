@@ -2,10 +2,10 @@ import json
 
 
 def get_tags():
-    pass
+    return ["ideas"]
 
 def get_displayed_tags():
-    pass
+    return []
 
 
 def init_memory():
