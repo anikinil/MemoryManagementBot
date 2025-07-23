@@ -3,8 +3,9 @@ from google import genai
 from google.genai import types
 
 import memory
-
 import util
+
+# TODO change "You" to "Model" in initial prompts
 
 API_KEY = "AIzaSyDynKKQdiN0ZyW-AsCTRlT42IC6E0Kmnsg"
 MODEL_NAME = "gemini-2.0-flash"
@@ -121,7 +122,7 @@ Current time: """ + time + """
         print(message)
 
         self.messages.append({      # request message from chat assistant to request handler
-            "role": "assistant",
+            "role": "model",
             "content": message
         })
 
@@ -163,7 +164,7 @@ Current time: """ + time + """
             print(response)
             response_content = response.candidates[0].content.parts[0]
             self.messages.append({
-                "role": "assistant",
+                "role": "model",
                 "content": response_content
             })
             tool_call = response_content.function_call
