@@ -1,8 +1,10 @@
 from google import genai
 from google.genai import types
 
-from memory import get_last_state
+import memory
 import tools
+
+import util
 
 API_KEY = "AIzaSyDynKKQdiN0ZyW-AsCTRlT42IC6E0Kmnsg"
 MODEL_NAME = "gemini-2.0-flash"
@@ -40,11 +42,11 @@ User: "I need to read about RAGs tomorrow evening."
 You: "Alright, give me a second."
 You call: request(message="The user needs to read about RAGs tomorrow evening.")
 
-Tool: "Is this task related to university?"
+Tool: "Please clarify: Is this task related to university?"
 
 You: "No, it's for his bot side project." (you now that from previous conversation with the user)
 
-Tool: "Terminated with the message: "Alright, I saved the side project task and set a reminder for 18:00. Good bye!""
+Tool: "Terminated with: Alright, I saved the side project task and set a reminder for 18:00. Good bye!"
 
 You: "Okay, I saved your task and set a reminder for 6pm on the 20th June 2025.
 
@@ -55,7 +57,7 @@ User: "What plant related stuff did I plan for the weekend?"
 You: "Let me check..."
 You call: request(message="Please retrieve all plant related tasks planned for the weekend.")
 
-Tool: "The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)."
+Tool: "Terminated with: The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)."
 
 You: "Here is what I found: Order seeds on Saturday at 17:00 and buy universal soil on Sunday."
 
@@ -66,7 +68,7 @@ User: "I need you to display all his groceries, but leave out the ones needed fo
 You: "Right away."
 You call: request(message="Please display the grocery list, excluding items only related to the cake, the user planned to bake.")
 
-Tool: "Now displaying requested groceries, excluding flour and cinnamon."
+Tool: "Terminated with: Now displaying requested groceries, excluding flour and cinnamon."
 
 You: "Alright, requested groceries are displayed now, excluded are flour and cinnamon."
 
@@ -77,7 +79,7 @@ User: "Delete my thoughts on Java as a teaching language."
 You: "Just a second, I will delete them."
 You call: request(message="Please delete user's thoughts on Java as a teaching language.")
 
-Tool: "Successfully deleted entries: "1", "2"."
+Tool: "Terminated with: Successfully deleted entries: "1", "2"."
 
 You: "Alright, deleted the thoughts "Java is a good teaching language" and "People should learn Java before Python"."
 
@@ -88,15 +90,61 @@ Current time: {time}
 """
         
         self.client = genai.Client(api_key=API_KEY)
-        
-        self.tools = tools.ChatAssistTools()
+        self.messages = []
+                
+        request_tool = types.FunctionDeclaration(
+                name='request',
+                description="Sends your memory request to the request handler agent.",
+                parameters=types.Schema(
+                    type='OBJECT',
+                    properties={
+                        'message': types.Schema(
+                            type='string',
+                            description='Request message in natural language',
+                        )
+                    },
+                    required=['message']
+                ),
+            )
+        # tool
+        def request(self, message):
 
+            self.messages.append({      # request message from chat assistant to request handler
+                "role": "user",
+                "content": message
+            })
+
+            tags = memory.get_tags()
+            displayed = memory.get_displayed_tags()
+            curr_date = util.get_curr_date()
+            curr_time = util.get_curr_time()
+
+            request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
+            response = request_handler.handle_request(message)
+
+            self.messages.append({      # response message from request handler to chat assistant
+                "role": "assistant",
+                "content": response
+            })
+
+            tool_call = response.parts[0].function_call if response.parts else None 
+            if tool_call == "clarify":
+                return "Please clarify: " + (response.parts[0].text if response.parts else "(no message)")
+            elif tool_call == "terminate":
+                return "Terminated with: " + (response.parts[0].text if response.parts else "(no message)")
+            
+            
         self.config = {
             "system_instruction": self.initial_prompt,
-            "tools": [types.Tool(function_declarations=tools.available_tools)],
+            "tools": [types.Tool(function_declarations=[request_tool])],
             # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
             # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
         }
+    
+                
+        
+
+
 
 class RequestHandlerAgent:
     def __init__(self, tags, displayed, date, time):
@@ -243,7 +291,7 @@ Current time: {time}
 """ 
         self.client = genai.Client(api_key=API_KEY)
 
-        self.tools = tools.RequestHandlerTools()
+        self.tools = tools.request_handler_tools
 
         self.config = {
             "system_instruction": self.initial_prompt,
@@ -257,7 +305,12 @@ Current time: {time}
         Handles the request by generating a response using the LLM.
         """
         try:
-            pass
+            response = self.client.models.generate_content(
+                contents=[types.Content(role="user", parts=[types.Part(text=request)])],
+                model=MODEL_NAME,
+                config=self.config
+            )
+            return response.parts[0].text
         except genai.errors.ServerError:
             self.handle_request(request)  # Retry the request in case of a server error
 
