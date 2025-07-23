@@ -1,8 +1,9 @@
 TOKEN = "7755827804:AAED1PPZCTpScgMPg-ebXxn_BLZn7Bd_Xk8"
 
+import util
 import logging
 
-from llm import ChatAssistant, RequestHandler
+from llm import ChatAssistantAgent
 
 from functools import wraps
 
@@ -10,9 +11,6 @@ from telegram import Update, ChatAction, InlineKeyboardMarkup, InlineKeyboardBut
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import threading
 import time
-
-from memory import update_display
-from tools import available_functions
 
 from google import genai
 
@@ -63,47 +61,53 @@ def send_typing_action(func):
 def process(update: Update, context: CallbackContext) -> None:
 
     # TODO make bot wait for a few seconds, before answering, so user can send multiple messages in a row
-        # TODO concatenate multiple messages into one before passing to LLM
+        # -> TODO concatenate multiple messages into one before passing to LLM
 
     user_input = update.message.text
-    response = generate_llm_response(update, context, 'user', user_input)
+    response = generate_llm_response(update, context, user_input)
+    
+    print('\nResponse:\n')
+    print(response)
 
-    tool_calls = [part.function_call for part in response.parts if part.function_call is not None]
-    if tool_calls:
-        print('\nTool calls:\n')
-        print(tool_calls)
-        function_output = ''
-        for tool in tool_calls:
-            if function_to_call := available_functions.get(tool.name):
-                print('Calling function: ' + tool.name)
-                print('Arguments: ' + str(tool.args))
-                function_output = function_to_call(**tool.args)
-                send_telegram_message(update, message='Function ' + tool.name + ': ' + str(tool.args))
-            else:
-                function_output = 'function does not exist'
-                print('Function does not exist: ' + tool.name)
-                send_telegram_message(update, message='Function does not exist: ' + tool.name)
+    send_telegram_message(update, message=response)
 
-        if len(tool_calls) == 1:
-            if tool_calls[0].name == 'print_subnodes':
-                send_telegram_message(update, message=function_output)
-            else:
-                response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
-                if response_to_tool.parts[0].text:
-                    send_telegram_message(update, message=response_to_tool.parts[0].text)
-        update_display()
-    else:
-        print("No tool calls\n")
-        send_telegram_message(update, message=response.parts[0].text)
+    # tool_calls = [part.function_call for part in response.parts if part.function_call is not None]
+    # if tool_calls:
+    #     print('\nTool calls:\n')
+    #     print(tool_calls)
+    #     function_output = ''
+    #     for tool in tool_calls:
+    #         if function_to_call := available_functions.get(tool.name):
+    #             print('Calling function: ' + tool.name)
+    #             print('Arguments: ' + str(tool.args))
+    #             function_output = function_to_call(**tool.args)
+    #             send_telegram_message(update, message='Function ' + tool.name + ': ' + str(tool.args))
+    #         else:
+    #             function_output = 'function does not exist'
+    #             print('Function does not exist: ' + tool.name)
+    #             send_telegram_message(update, message='Function does not exist: ' + tool.name)
+
+    #     if len(tool_calls) == 1:
+    #         if tool_calls[0].name == 'print_subnodes':
+    #             send_telegram_message(update, message=function_output)
+    #         else:
+    #             response_to_tool = generate_llm_response(update, context, 'tool', str(function_output))
+    #             if response_to_tool.parts[0].text:
+    #                 send_telegram_message(update, message=response_to_tool.parts[0].text)
+    #     update_display()
+    # else:
+    #     print("No tool calls\n")
+    #     send_telegram_message(update, message=response.parts[0].text)
 
 @send_typing_action
-def generate_llm_response(update: Update, context: CallbackContext, role, input) -> None:
+def generate_llm_response(update: Update, context: CallbackContext, input) -> None:
     
     try:
-        return generate_response(role, input)
+        agent = ChatAssistantAgent(util.get_curr_date(), util.get_curr_time())
+        return agent.handle_user_input(input)
     except genai.errors.ServerError:
         print('Server error occurred, retrying...\n')
-        return generate_response(role, input)
+        return generate_llm_response(input)
 
 
 def send_telegram_message(update: Update, message) -> None:
@@ -175,7 +179,6 @@ def main() -> None:
     # Register handler for inline buttons
     dispatcher.add_handler(CallbackQueryHandler(button_tap))
 
-    # Echo any message that is not a command
     dispatcher.add_handler(MessageHandler(~Filters.command, process))
 
     # Start the Bot

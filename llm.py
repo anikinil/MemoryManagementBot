@@ -1,8 +1,8 @@
+from json import tool
 from google import genai
 from google.genai import types
 
 import memory
-import tools
 
 import util
 
@@ -40,7 +40,7 @@ The user does not need to know, that you are to separate agents, he should perce
 User: "I need to read about RAGs tomorrow evening."
 
 You: "Alright, give me a second."
-You call: request(message="The user needs to read about RAGs tomorrow evening.")
+Function call: request(message="The user needs to read about RAGs tomorrow evening.")
 
 Tool: "Please clarify: Is this task related to university?"
 
@@ -55,7 +55,7 @@ You: "Okay, I saved your task and set a reminder for 6pm on the 20th June 2025.
 User: "What plant related stuff did I plan for the weekend?"
 
 You: "Let me check..."
-You call: request(message="Please retrieve all plant related tasks planned for the weekend.")
+Function call: request(message="Please retrieve all plant related tasks planned for the weekend.")
 
 Tool: "Terminated with: The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)."
 
@@ -66,7 +66,7 @@ You: "Here is what I found: Order seeds on Saturday at 17:00 and buy universal s
 User: "I need you to display all his groceries, but leave out the ones needed for the cake only."
 
 You: "Right away."
-You call: request(message="Please display the grocery list, excluding items only related to the cake, the user planned to bake.")
+Function call: request(message="Please display the grocery list, excluding items only related to the cake, the user planned to bake.")
 
 Tool: "Terminated with: Now displaying requested groceries, excluding flour and cinnamon."
 
@@ -77,7 +77,7 @@ You: "Alright, requested groceries are displayed now, excluded are flour and cin
 User: "Delete my thoughts on Java as a teaching language."
 
 You: "Just a second, I will delete them."
-You call: request(message="Please delete user's thoughts on Java as a teaching language.")
+Function call: request(message="Please delete user's thoughts on Java as a teaching language.")
 
 Tool: "Terminated with: Successfully deleted entries: "1", "2"."
 
@@ -106,8 +106,19 @@ Current time: {time}
                     required=['message']
                 ),
             )
+        
+        self.config = {
+            "system_instruction": self.initial_prompt,
+            "tools": [types.Tool(function_declarations=[self.request_tool])],
+            # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
+            # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
+        }
+        
     # tool
     def request(self, message):
+        
+        print("MESSAGE in request (tool) in ChatAssistantAgent")
+        print(message)
 
         self.messages.append({      # request message from chat assistant to request handler
             "role": "assistant",
@@ -120,26 +131,20 @@ Current time: {time}
         curr_time = util.get_curr_time()
 
         request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
-        response = request_handler.handle_request(message)
-
-        # self.messages.append({      # response message from request handler to chat assistant
-        #     "role": "tool",
-        #     "content": response
-        # })
-
-        tool_call = response.parts[0].function_call if response.parts else None 
-        if tool_call == "clarify":
-            return "Please clarify: " + (response.parts[0].text if response.parts else "(no message)")
-        elif tool_call == "terminate":
-            return "Terminated with: " + (response.parts[0].text if response.parts else "(no message)")
-            
-        self.config = {
-            "system_instruction": self.initial_prompt,
-            "tools": [types.Tool(function_declarations=[self.request_tool])],
-            # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
-            # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
-        }
+        response_content = request_handler.handle_request(message)
         
+        print("RESPONSE_CONTENT from request_handler.handle_request in request (tool) in CAA")
+        print(response_content)
+
+        message = response_content.parts[0].text
+        tool_call = response_content.parts[1].function_call
+        if tool_call == "clarify":
+            return "Please clarify: " + (message if message else "(no message)")
+        elif tool_call == "terminate":
+            return "Terminated with: " + (message if message else "(no message)")
+        else:
+            print("RequestHandlerAgent was supposed to call clarify or terminate but did neither: " + (message if message else "(no message)"))
+
     def handle_user_input(self, user_input):
         """
         Handles the user input by choosing the appropriate action.
@@ -154,15 +159,18 @@ Current time: {time}
                 model=MODEL_NAME,
                 config=self.config
             )
+            print("RESPONSE in handle_user_input in ChatAssistantAgent:")
+            print(response)
+            response_content = response.candidates[0].content.parts[0]
             self.messages.append({
                 "role": "assistant",
-                "content": response.parts[0].text
+                "content": response_content
             })
-            tool_call = response.parts[0].function_call if response.parts else None
+            tool_call = response_content.function_call
             if tool_call and tool_call.name == "request":
-                return self.request(message=user_input)
+                return self.request(**tool_call.args)
             else:
-                return response.parts[0].text
+                return response_content.text
         except genai.errors.ServerError:
             print('Server error occurred, retrying...\n')
             return self.handle_user_input(user_input)
@@ -203,24 +211,24 @@ You always use reasoning, before performing any actions, so that the memory stay
 User: "The user needs to read about RAGs tomorrow evening."
 
 You: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
-You call: clarify(message="Is this task related to university?")
+Function call: clarify(message="Is this task related to university?")
 
 User: "No, it's for his bot side project."
 
 You: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
-You call: save(content="read about RAGs", tags=["tasks", "generative AI", "bots", "side projects", "LLM"], date="20.06.2025", time="18:00")
+Function call: save(content="read about RAGs", tags=["tasks", "generative AI", "bots", "side projects", "LLM"], date="20.06.2025", time="18:00")
 
 Tool: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
 
 You: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
-You call: terminate(message="Alright, I saved the side project task and set a reminder for 18:00. Good bye!")
+Function call: terminate(message="Alright, I saved the side project task and set a reminder for 18:00. Good bye!")
     
 2. Read request
 
 User: "What plants related stuff did the user plan for the weekend?"
 
 You: "Okay, the user wants me to retrieve tasks, that are related to plants and are planed for the weekend. Today is Wednesday, so the next weekend includes the dates in three and four days, so I am looking for entries on these days. Now, there are no tags directly related to plants, but there is "potting soil" and "seeds", so maybe I should try these. Also, I should include the "TODO" tag, to get entries that are actual tasks and not other types of nodes. I will start with the date."
-You call: read(tags=[seeds, potting soil, TODO], dates=[21.06.2025, 22.06.2025], time=[]) // empty time, because time is relevant for the request
+Function call: read(tags=[seeds, potting soil, TODO], dates=[21.06.2025, 22.06.2025], time=[]) // empty time, because time is relevant for the request
 
 Tool: [{
     content: "Should order seeds on Saturday",
@@ -252,7 +260,7 @@ User: "Please display the grocery list, excluding items only related to the cake
 
 You: "Okay, I need to display the grocery list, but exclude items related to the cake only. I do not see any other tags related to cake apart from "cake", so I will use the "groceries" tag to retrieve all groceries and then exclude the items marked with the "cake" tag.
 
-You call: display(tags=["groceries"], exclude_tags=["cake"])
+Function call: display(tags=["groceries"], exclude_tags=["cake"])
 
 Tool:
 
@@ -273,7 +281,7 @@ You: "Alright, now displaying requested groceries, excluding flour and cinnamon.
 User: "Please delete user's thoughts on Java as a teaching language."
 
 You: "Okay, I need to delete the thoughts on Java as a teaching language. I will first retrieve them and then delete them by their IDs."
-You call: read(tags=["Java", "teaching language", "thoughts"], dates=[], time=[])
+Function call: read(tags=["Java", "teaching language", "thoughts"], dates=[], time=[])
 
 Tool: [{
     content: "Java a good teaching language",
@@ -298,7 +306,7 @@ Tool: [{
 }]
 
 You: "Okay, it looks like only the first two entries are related to Java as a teaching language, so I will delete them."
-You call: delete(ids=["1", "2"])
+Function call: delete(ids=["1", "2"])
 
 Tool: "Successfully deleted entries: "1", "2".
 
@@ -315,7 +323,7 @@ Current time: {time}
 """ 
         self.client = genai.Client(api_key=API_KEY)
 
-        clarify_tool = types.FunctionDeclaration(
+        self.clarify_tool = types.FunctionDeclaration(
             name='clarify',
             description="""Asks the chat assistant for clarification on the request.""",
             parameters=types.Schema(
@@ -329,14 +337,8 @@ Current time: {time}
                 required=['question']
             ),
         )
-        # tool
-        def clarify(question):
-            """
-            Asks the chat assistant for clarification on the request.
-            """
-            return f"Please clarify your request: {question}"
-
-        save_tool = types.FunctionDeclaration(
+        
+        self.save_tool = types.FunctionDeclaration(
             name='save',
             description="""Saves the provided entry with the specified tags, date, and time.""",
             parameters=types.Schema(
@@ -363,15 +365,8 @@ Current time: {time}
                 required=['content', 'tags', 'date', 'time']
             )
         )
-        # tool
-        def save(content, tags, date, time):
-            """
-            Saves the provided content with the specified tags, date, and time.
-            """
-            # TODO implement the saving logic
-            pass
-
-        read_tool = types.FunctionDeclaration(
+        
+        self.read_tool = types.FunctionDeclaration(
             name='read',
             description="""Retrieves entries based on the specified tags, dates, and times.""",
             parameters=types.Schema(
@@ -396,39 +391,8 @@ Current time: {time}
                 required=['tags', 'dates', 'time']
             )
         )
-        # tool
-        # TODO add ids to each entry, so each can be referenced individually
-        def read(tags, dates, time):
-            """
-            Retrieves entries based on the specified tags, dates, and times.
-            """
-            # TODO implement the reading logic
-            pass
 
-        delete_tool = types.FunctionDeclaration(
-            name='delete',
-            description="""Deletes entries based on the specified IDs. Can only be called after a read request.""",
-            parameters=types.Schema(
-                type='OBJECT',
-                properties={
-                    'ids': types.Schema(
-                        type='array',
-                        items=types.Schema(type='string'),
-                        description='List of IDs of entries to delete',
-                    )
-                },
-                required=['ids']
-            )
-        )
-        # tool
-        def delete(ids):
-            """
-            Deletes entries based on the specified IDs.
-            """
-            # TODO implement the deletion logic
-            pass
-
-        display_tool = types.FunctionDeclaration(
+        self.display_tool = types.FunctionDeclaration(
             name='display',
             description="""Displays entries for the user based on the specified tags and optionally excludes entries with the tags specified in exclude_tags.""",
             parameters=types.Schema(
@@ -452,15 +416,24 @@ Current time: {time}
                 required=['tags', 'additive']
             )
         )
-        # tool
-        def display(tags, additive, exclude_tags=None):
-            """
-            Displays entries based on the specified tags and excludes entries with the specified tags.
-            """
-            # TODO implement the display logic
-            pass
 
-        undo_tool = types.FunctionDeclaration(
+        self.delete_tool = types.FunctionDeclaration(
+            name='delete',
+            description="""Deletes entries based on the specified IDs. Can only be called after a read request.""",
+            parameters=types.Schema(
+                type='OBJECT',
+                properties={
+                    'ids': types.Schema(
+                        type='array',
+                        items=types.Schema(type='string'),
+                        description='List of IDs of entries to delete',
+                    )
+                },
+                required=['ids']
+            )
+        )
+
+        self.undo_tool = types.FunctionDeclaration(
             name='undo',
             description="""Undoes the last n changes performed on the memory. Read and display calls are not considered changes.""",
             parameters=types.Schema(
@@ -474,15 +447,8 @@ Current time: {time}
                 required=['n']
             )
         )
-        # tool
-        def undo(n):
-            """
-            Undoes the last n changes performed on the memory.
-            """
-            # TODO implement the undo logic
-            pass
-                
-        request_handler_tools = [
+        
+        self.request_handler_tools = [
             self.clarify_tool,
             self.save_tool,
             self.read_tool,
@@ -493,10 +459,64 @@ Current time: {time}
         
         self.config = {
             "system_instruction": self.initial_prompt,
-            "tools": [types.Tool(function_declarations=request_handler_tools)],
+            "tools": [types.Tool(function_declarations=self.request_handler_tools)],
             # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
             # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
         }
+        
+        
+        
+    # tool
+    def clarify(question):
+        """
+        Asks the chat assistant for clarification on the request.
+        """
+        return f"Please clarify your request: {question}"
+
+        
+    # tool
+    def save(content, tags, date, time):
+        """
+        Saves the provided content with the specified tags, date, and time.
+        """
+        # TODO implement the saving logic
+        pass
+
+        
+    # tool
+    # TODO add ids to each entry, so each can be referenced individually
+    def read(tags, dates, time):
+        """
+        Retrieves entries based on the specified tags, dates, and times.
+        """
+        # TODO implement the reading logic
+        pass
+
+        
+    # tool
+    def delete(ids):
+        """
+        Deletes entries based on the specified IDs.
+        """
+        # TODO implement the deletion logic
+        pass
+
+    
+    # tool
+    def display(tags, additive, exclude_tags=None):
+        """
+        Displays entries based on the specified tags and excludes entries with the specified tags.
+        """
+        # TODO implement the display logic
+        pass
+
+    # tool
+    def undo(n):
+        """
+        Undoes the last n changes performed on the memory.
+        """
+        # TODO implement the undo logic
+        pass
         
     
     def handle_request(self, request):
@@ -504,14 +524,46 @@ Current time: {time}
         Handles the request by generating a response using the LLM.
         """
         try:
+            print("REQUEST in handle_request in RequestHandlerAgent")
+            print(request)
             response = self.client.models.generate_content(
                 contents=[types.Content(role="user", parts=[types.Part(text=request)])],
                 model=MODEL_NAME,
                 config=self.config
             )
-            return response.parts[0].text
+            print("RESPONSE in handle_request in RequestHandlerAgent")
+            print(response)
+            response_content = response.candidates[0].content
+            
+            response_tool_call = None
+            # sometimes tool call is already in the 1st (and only) part, but sometimes it comes in 2nd part
+            if response_content.parts[0].function_call is not None:
+                response_tool_call = response_content.parts[0].function_call
+            elif len(response_content.parts) > 1 and response_content.parts[1].function_call is not None:
+                response_tool_call = response_content.parts[1].function_call
+
+            if response_tool_call == "terminate":
+                print("TERMINATE in handle_request in RHA")
+                return response_content
+            elif response_tool_call == "clarify":
+                print("CLARIFY in handle_request in RHA")
+                return response_content
+            elif response_tool_call is not None:
+                tool_response = self.execute_memory_action(response_tool_call)
+            else:
+                print("NO TOOL CALL DETECTED in handle_request in RHA")
+
+            return response_content
         except genai.errors.ServerError:
             self.handle_request(request)  # Retry the request in case of a server error
+
+    # is called from handle_request, when a memory action is detected in the response of the RequestHandlerAgent
+    def execute_memory_action(self, tool_call):
+        
+        print("\nREQUESTED ACTION is", tool_call)
+
+        return "" # should return the tool response(s)
+
 
 # TODO try without the archivist first
 class Archivist:
