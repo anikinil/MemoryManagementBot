@@ -92,7 +92,7 @@ Current time: {time}
         self.client = genai.Client(api_key=API_KEY)
         self.messages = []
                 
-        request_tool = types.FunctionDeclaration(
+        self.request_tool = types.FunctionDeclaration(
                 name='request',
                 description="Sends your memory request to the request handler agent.",
                 parameters=types.Schema(
@@ -106,42 +106,67 @@ Current time: {time}
                     required=['message']
                 ),
             )
-        # tool
-        def request(self, message):
+    # tool
+    def request(self, message):
 
-            self.messages.append({      # request message from chat assistant to request handler
-                "role": "user",
-                "content": message
-            })
+        self.messages.append({      # request message from chat assistant to request handler
+            "role": "assistant",
+            "content": message
+        })
 
-            tags = memory.get_tags()
-            displayed = memory.get_displayed_tags()
-            curr_date = util.get_curr_date()
-            curr_time = util.get_curr_time()
+        tags = memory.get_tags()
+        displayed = memory.get_displayed_tags()
+        curr_date = util.get_curr_date()
+        curr_time = util.get_curr_time()
 
-            request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
-            response = request_handler.handle_request(message)
+        request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time)
+        response = request_handler.handle_request(message)
 
-            self.messages.append({      # response message from request handler to chat assistant
-                "role": "assistant",
-                "content": response
-            })
+        # self.messages.append({      # response message from request handler to chat assistant
+        #     "role": "tool",
+        #     "content": response
+        # })
 
-            tool_call = response.parts[0].function_call if response.parts else None 
-            if tool_call == "clarify":
-                return "Please clarify: " + (response.parts[0].text if response.parts else "(no message)")
-            elif tool_call == "terminate":
-                return "Terminated with: " + (response.parts[0].text if response.parts else "(no message)")
-            
+        tool_call = response.parts[0].function_call if response.parts else None 
+        if tool_call == "clarify":
+            return "Please clarify: " + (response.parts[0].text if response.parts else "(no message)")
+        elif tool_call == "terminate":
+            return "Terminated with: " + (response.parts[0].text if response.parts else "(no message)")
             
         self.config = {
             "system_instruction": self.initial_prompt,
-            "tools": [types.Tool(function_declarations=[request_tool])],
+            "tools": [types.Tool(function_declarations=[self.request_tool])],
             # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
             # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
         }
-    
-                
+        
+    def handle_user_input(self, user_input):
+        """
+        Handles the user input by choosing the appropriate action.
+        """
+        self.messages.append({
+            "role": "user",
+            "content": user_input
+        })
+        try:
+            response = self.client.models.generate_content(
+                contents=[types.Content(role="user", parts=[types.Part(text=user_input)])],
+                model=MODEL_NAME,
+                config=self.config
+            )
+            self.messages.append({
+                "role": "assistant",
+                "content": response.parts[0].text
+            })
+            tool_call = response.parts[0].function_call if response.parts else None
+            if tool_call and tool_call.name == "request":
+                return self.request(message=user_input)
+            else:
+                return response.parts[0].text
+        except genai.errors.ServerError:
+            print('Server error occurred, retrying...\n')
+            return self.handle_user_input(user_input)
+
         
 
 
@@ -154,7 +179,6 @@ class RequestHandlerAgent:
         self.date = date
         self.time = time
         
-        # TODO update all time and date related info to current format
         # TODO (?) add an example with multiple sequential memory changes
         self.initial_prompt = """You are a helpful memory request handling assistant. You receive a memory request in natural language from another LLM which functions as a chat agent which communicates with the user. After receiving a request you execute it and then terminate. You only communicate to the chat agent, who is marked by the role "user".
 
