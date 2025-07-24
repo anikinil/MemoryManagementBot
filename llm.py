@@ -8,8 +8,9 @@ import util
 
 # TODO if anything goes wrong (agent retries same request) stop and reinitialize the agent with same input
 
-API_KEY = os.environ.get("GEMINI_API_KEY")
-MODEL_NAME = "gemini-"
+API_KEY = os.environ['GEMINI_API_KEY']
+# MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME = "gemini-2.5-pro"
 
 class ChatAssistantAgent:
     
@@ -90,7 +91,6 @@ You: "Alright, deleted the thoughts "Java is a good teaching language" and "Peop
 Current date: """ + date + """
 Current time: """ + time + """
 """
-        
         self.client = genai.Client(api_key=API_KEY)
         self.messages = []
                 
@@ -112,8 +112,8 @@ Current time: """ + time + """
         self.config = {
             "system_instruction": self.initial_prompt,
             "tools": [types.Tool(function_declarations=[self.request_tool])],
-            # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
-            # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
+            # "thinking_config": types.ThinkingConfig(include_thinking=True, thinking_budget=100)
+            "tool_config": {"function_calling_config": {"mode": "any"}}
         }
         
     # tool
@@ -202,11 +202,11 @@ Current time: """ + time + """
         })
         try:
             response = self.client.models.generate_content(
-                contents=[types.Content(role="model", parts=[types.Part(text=question)])],
+                contents=[types.Content(role="user", parts=[types.Part(text=question)])],
                 model=MODEL_NAME,
                 config=self.config
             )
-            print("\nRESPONSE in handle_clarification_request in ChatAssistantAgent:")
+            print("\nRESPONSE in answer_clarification_request in ChatAssistantAgent:")
             print(response)
             response_content = response.candidates[0].content.parts[0]
             self.messages.append({
@@ -216,7 +216,7 @@ Current time: """ + time + """
             return response_content.text
         except genai.errors.ServerError:
             print('Server error occurred, retrying...\n')
-            return self.handle_clarification_request(question)
+            return self.answer_clarification_request(question)
 
 
 
@@ -248,21 +248,131 @@ When absolutely necessary, you can ask clarifying questions using the "clarify" 
 
 # Example interaction
 
-Chat assistant: "The user needs to read about RAGs tomorrow evening."
+User: "The user needs to read about RAGs tomorrow evening."
+
+You write: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
+And make this function call: {name='clarify' args={'message': "Is this task related to university?"}}
+
+User: "No, it's for his bot side project."
+
+You write: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
+And make this function call: {name='save' args={'content': "read about RAGs", 'tags': ["tasks", "generative AI", "bots", "side projects", "LLM"], 'date': "20.06.2025", 'time': "18:00"}}
+
+User: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
+
+You write: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
+And make this function call: {name='terminate' args={'message': "Alright, I saved the side project task and set a reminder for 18:00. Good bye!"}}
+
+# Example interactions (Note: the function calls are not to be passed as text, but as function calls)
+
+1. Save request:
+
+User: "The user needs to read about RAGs tomorrow evening."
 
 You: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
-(And you call clarify)
+clarify(message="Is this task related to university?")
 
-Chat assistant: "No, it's for his bot side project."
+User: "No, it's for his bot side project."
 
 You: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
-(And you call save)
+save(content="read about RAGs", tags=["tasks", "generative AI", "bots", "side projects", "LLM"], date="20.06.2025", time="18:00")
 
-Chat assistant: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
+User: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
 
-You: "Okay, it worked, I can terminate now by sending a message about what I saved."
-(And you call terminate with a message like "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm.")
+You: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
+terminate(message="Alright, I saved the side project task and set a reminder for 18:00. Good bye!")
+    
+2. Read request
 
+User: "What plants related stuff did the user plan for the weekend?"
+
+You: "Okay, the user wants me to retrieve tasks, that are related to plants and are planed for the weekend. Today is Wednesday, so the next weekend includes the dates in three and four days, so I am looking for entries on these days. Now, there are no tags directly related to plants, but there is "potting soil" and "seeds", so maybe I should try these. Also, I should include the "TODO" tag, to get entries that are actual tasks and not other types of nodes. I will start with the date."
+read(tags=[seeds, potting soil, TODO], dates=[21.06.2025, 22.06.2025], time=[]) // empty time, because time is relevant for the request
+
+User: [{
+    content: "Should order seeds on Saturday",
+    tags: ["seeds", "TODO"],
+    dates: ["21.06.2025"],
+    times: ["17:00"],
+    id: "1"
+}, 
+{
+    content: "Where to get monstera seeds?",
+    tags: ["seeds", "thoughts"],
+    dates: [],
+    times: [],
+    id: "2"
+},
+{
+    content: "Buy universal soil",
+    tags: ["potting soil", "TODO"],
+    dates: ["22.06.2025"],
+    times: [],
+    id: "3"
+}]
+
+You: "The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)." (you do not mention the monstera entry, since it is not a task, so not what the user asked for)
+terminate(message="The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday).")
+
+3. Display request
+
+User: "Please display the grocery list, excluding items only related to the cake, the user planned to bake."
+
+You: "Okay, I need to display the grocery list, but exclude items related to the cake only. I do not see any other tags related to cake apart from "cake", so I will use the "groceries" tag to retrieve all groceries and then exclude the items marked with the "cake" tag.
+
+display(tags=["groceries"], exclude_tags=["cake"])
+
+User:
+
+"Displaying: [
+    {content: "Bread", tags: ["groceries"], dates: [24.06.2025], times: [], id: "4"},
+    {content: "Coffee", tags: ["groceries"], dates: [23.06.2025], times: [], id: "5"},
+    {content: "Carrots", tags: ["groceries"], dates: [], times: [], id: "7"}
+]
+Excluding: [
+    {content: "Flour", tags: ["cake", "groceries"], dates: [24.06.2025], times: "6"},
+    {content: "Cinnamon", tags: ["cake", "groceries"], dates: [24.06.2025], times: "8"}
+]"
+
+You: Alright, I can terminate now.
+terminate(message="Now displaying requested groceries, excluding flour and cinnamon.")
+
+4. Delete request
+
+User: "Please delete user's thoughts on Java as a teaching language."
+
+You: "Okay, I need to delete the thoughts on Java as a teaching language. I will first retrieve them and then delete them by their IDs."
+read(tags=["Java", "teaching language", "thoughts"], dates=[], time=[])
+
+User: [{
+    content: "Java a good teaching language",
+    tags: ["thoughts", "Java"],
+    dates: [],
+    times: [],
+    id: "1"
+},
+{
+    content: "People should learn Java before Python",
+    tags: ["thoughts", "Java", "Python"],
+    dates: [],
+    times: [],
+    id: "2"
+},
+{
+    content: "Maybe reprogram the Game of Life project in Java",
+    tags: ["thoughts", "Java", "Game of Life"],
+    dates: ["28.06.2025"],
+    times: [],
+    id: "3"
+}]
+
+You: "Okay, it looks like only the first two entries are related to Java as a teaching language, so I will delete them."
+delete(ids=["1", "2"])
+
+User: "Successfully deleted entries: "1", "2".
+
+You: Okay, that worked, I can terminate now.
+terminate(message="Deleted: 'Java a good teaching language' and 'People should learn Java before Python'.")
 
 # Current state
 
@@ -272,142 +382,7 @@ Currently displayed tags: """ + ", ".join(displayed_tags) + """
 
 Current date: """ + date + """
 Current time: """ + time + """
-
 """
-
-# # Example interaction
-
-# User: "The user needs to read about RAGs tomorrow evening."
-
-# You write: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
-# And make this function call: {name='clarify' args={'message': "Is this task related to university?"}}
-
-# User: "No, it's for his bot side project."
-
-# You write: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
-# And make this function call: {name='save' args={'content': "read about RAGs", 'tags': ["tasks", "generative AI", "bots", "side projects", "LLM"], 'date': "20.06.2025", 'time': "18:00"}}
-
-# User: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
-
-# You write: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
-# And make this function call: {name='terminate' args={'message': "Alright, I saved the side project task and set a reminder for 18:00. Good bye!"}}
-
-# # Example interactions (Note: the function calls are not to be passed as text, but as function calls)
-
-# 1. Save request:
-
-# User: "The user needs to read about RAGs tomorrow evening."
-
-# You: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
-# clarify(message="Is this task related to university?")
-
-# User: "No, it's for his bot side project."
-
-# You: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
-# save(content="read about RAGs", tags=["tasks", "generative AI", "bots", "side projects", "LLM"], date="20.06.2025", time="18:00")
-
-# User: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
-
-# You: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
-# terminate(message="Alright, I saved the side project task and set a reminder for 18:00. Good bye!")
-    
-# 2. Read request
-
-# User: "What plants related stuff did the user plan for the weekend?"
-
-# You: "Okay, the user wants me to retrieve tasks, that are related to plants and are planed for the weekend. Today is Wednesday, so the next weekend includes the dates in three and four days, so I am looking for entries on these days. Now, there are no tags directly related to plants, but there is "potting soil" and "seeds", so maybe I should try these. Also, I should include the "TODO" tag, to get entries that are actual tasks and not other types of nodes. I will start with the date."
-# read(tags=[seeds, potting soil, TODO], dates=[21.06.2025, 22.06.2025], time=[]) // empty time, because time is relevant for the request
-
-# User: [{
-#     content: "Should order seeds on Saturday",
-#     tags: ["seeds", "TODO"],
-#     dates: ["21.06.2025"],
-#     times: ["17:00"],
-#     id: "1"
-# }, 
-# {
-#     content: "Where to get monstera seeds?",
-#     tags: ["seeds", "thoughts"],
-#     dates: [],
-#     times: [],
-#     id: "2"
-# },
-# {
-#     content: "Buy universal soil",
-#     tags: ["potting soil", "TODO"],
-#     dates: ["22.06.2025"],
-#     times: [],
-#     id: "3"
-# }]
-
-# You: "The user should order seeds (Saturday, 17:00) and buy universal soil (Sunday)." (you do not mention the monstera entry, since it is not a task, so not what the user asked for)
-
-# 3. Display request
-
-# User: "Please display the grocery list, excluding items only related to the cake, the user planned to bake."
-
-# You: "Okay, I need to display the grocery list, but exclude items related to the cake only. I do not see any other tags related to cake apart from "cake", so I will use the "groceries" tag to retrieve all groceries and then exclude the items marked with the "cake" tag.
-
-# display(tags=["groceries"], exclude_tags=["cake"])
-
-# User:
-
-# "Displaying: [
-#     {content: "Bread", tags: ["groceries"], dates: [24.06.2025], times: [], id: "4"},
-#     {content: "Coffee", tags: ["groceries"], dates: [23.06.2025], times: [], id: "5"},
-#     {content: "Carrots", tags: ["groceries"], dates: [], times: [], id: "7"}
-# ]
-# Excluding: [
-#     {content: "Flour", tags: ["cake", "groceries"], dates: [24.06.2025], times: "6"},
-#     {content: "Cinnamon", tags: ["cake", "groceries"], dates: [24.06.2025], times: "8"}
-# ]"
-
-# You: "Alright, now displaying requested groceries, excluding flour and cinnamon."
-
-# 4. Delete request
-
-# User: "Please delete user's thoughts on Java as a teaching language."
-
-# You: "Okay, I need to delete the thoughts on Java as a teaching language. I will first retrieve them and then delete them by their IDs."
-# read(tags=["Java", "teaching language", "thoughts"], dates=[], time=[])
-
-# User: [{
-#     content: "Java a good teaching language",
-#     tags: ["thoughts", "Java"],
-#     dates: [],
-#     times: [],
-#     id: "1"
-# },
-# {
-#     content: "People should learn Java before Python",
-#     tags: ["thoughts", "Java", "Python"],
-#     dates: [],
-#     times: [],
-#     id: "2"
-# },
-# {
-#     content: "Maybe reprogram the Game of Life project in Java",
-#     tags: ["thoughts", "Java", "Game of Life"],
-#     dates: ["28.06.2025"],
-#     times: [],
-#     id: "3"
-# }]
-
-# You: "Okay, it looks like only the first two entries are related to Java as a teaching language, so I will delete them."
-# delete(ids=["1", "2"])
-
-# User: "Successfully deleted entries: "1", "2".
-
-# You: "Deleted: "Java a good teaching language" and "People should learn Java before Python"."
-
-# # Current state
-
-# Currently available tags: """ + ", ".join(tags) + """
-
-# Currently displayed tags: """ + ", ".join(displayed_tags) + """
-
-# Current date: """ + date + """
-# Current time: """ + time + """
 
         self.client = genai.Client(api_key=API_KEY)
         self.messages = []
@@ -549,8 +524,8 @@ Current time: """ + time + """
         self.config = {
             "system_instruction": self.initial_prompt,
             "tools": [types.Tool(function_declarations=self.request_handler_tools)],
-            # "thinking_config": types.ThinkingConfig(include_thoughts=True), -- not supported for gemini-2.0-flash
-            # "tool_config": {"function_calling_config": {"mode": "any"}} -- the model should talk the decisions through, since thinking not supported
+            # "thinking_config": types.ThinkingConfig(include_thinking=True, thinking_budget=100)
+            "tool_config": {"function_calling_config": {"mode": "any"}}
         }
         
         
@@ -663,7 +638,9 @@ Current time: """ + time + """
         
         print("\nREQUESTED ACTION is", tool_call)
 
-        return_value = "Entry \"milk\" saved successfully with tag \"groceries\""  # should return the tool response(s)
+        # return_value = "Entry \"milk\" saved successfully with tag \"groceries\""  # should return the tool response(s)
+        return_value = """[{content: "Buy milk", tags: ["buy", "groceries"], dates: [27.06.2025], times: [], id: "1"},{content: "Bread", tags: ["buy", "groceries"], dates: [], times: [], id: "2"}]"""
+
         print("RETURN_VALUE in execute_memory_action in RequestHandlerAgent:", return_value)
         return return_value
 
