@@ -1,4 +1,5 @@
 from json import tool
+import os
 from google import genai
 from google.genai import types
 
@@ -7,8 +8,8 @@ import util
 
 # TODO if anything goes wrong (agent retries same request) stop and reinitialize the agent with same input
 
-API_KEY = "AIzaSyDynKKQdiN0ZyW-AsCTRlT42IC6E0Kmnsg"
-MODEL_NAME = "gemini-2.0-flash"
+API_KEY = os.environ.get("GEMINI_API_KEY")
+MODEL_NAME = "gemini-"
 
 class ChatAssistantAgent:
     
@@ -247,20 +248,21 @@ When absolutely necessary, you can ask clarifying questions using the "clarify" 
 
 # Example interaction
 
-User: "The user needs to read about RAGs tomorrow evening."
+Chat assistant: "The user needs to read about RAGs tomorrow evening."
 
 You: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
-{name='clarify' args={'message': "Is this task related to university?"}}
+(And you call clarify)
 
-User: "No, it's for his bot side project."
+Chat assistant: "No, it's for his bot side project."
 
 You: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
-{name='save' args={'content': "read about RAGs", 'tags': ["tasks", "generative AI", "bots", "side projects", "LLM"], 'date': "20.06.2025", 'time': "18:00"}}
+(And you call save)
 
-User: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
+Chat assistant: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
 
-You: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
-{name='terminate' args={'message': "Alright, I saved the side project task and set a reminder for 18:00. Good bye!"}}
+You: "Okay, it worked, I can terminate now by sending a message about what I saved."
+(And you call terminate with a message like "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm.")
+
 
 # Current state
 
@@ -270,7 +272,26 @@ Currently displayed tags: """ + ", ".join(displayed_tags) + """
 
 Current date: """ + date + """
 Current time: """ + time + """
+
 """
+
+# # Example interaction
+
+# User: "The user needs to read about RAGs tomorrow evening."
+
+# You write: "Okay, this sounds like a task that needs to be done, so "tasks" is the tag I should attach. Also, the task has to be done tomorrow evening and 6pm sounds like an appropriate time for this task, so I should capture this as date and time property. RAGs are a topic related to generative AI, so I will add a "generative AI" tag. This definitely has nothing to do with "groceries", "movies" or any other of the currently used tags. Now, there is the "university" tag and this topic could be university related, but it could also be a general interest, which means, I should ask for clarification."
+# And make this function call: {name='clarify' args={'message': "Is this task related to university?"}}
+
+# User: "No, it's for his bot side project."
+
+# You write: "Okay, I should not add the university tag, but I could add the tags "bots" and "side projects" to capture the fact that it is a side project related to bots."
+# And make this function call: {name='save' args={'content': "read about RAGs", 'tags': ["tasks", "generative AI", "bots", "side projects", "LLM"], 'date': "20.06.2025", 'time': "18:00"}}
+
+# User: "Successfully saved "read about RAGs" with tags "tasks", "generative AI", "bots", "side projects" and "LLM" on 20th June 2025 at 6pm."
+
+# You write: "Okay, it worked, there are no unresolved questions, I can terminate now by sending a message about what I saved."
+# And make this function call: {name='terminate' args={'message': "Alright, I saved the side project task and set a reminder for 18:00. Good bye!"}}
+
 # # Example interactions (Note: the function calls are not to be passed as text, but as function calls)
 
 # 1. Save request:
