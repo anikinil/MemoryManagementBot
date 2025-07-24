@@ -1,9 +1,5 @@
 .gitignore
 venv/
 __pycache__/
-token.txt
 memory_log.json
-test.py
-test_memory.json
-memory_state.json
 token.txt
