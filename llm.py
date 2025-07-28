@@ -12,12 +12,19 @@ API_KEY = os.environ['GEMINI_API_KEY']
 # MODEL_NAME = "gemini-2.0-flash"
 MODEL_NAME = "gemini-2.5-pro"
 
-class ChatAssistant:
+class Agent:
     
     def __init__(self, date, time):
-        
         self.date = date
         self.time = time
+        self.client = genai.Client(api_key=API_KEY)
+        self.messages = []
+        
+
+class ChatAssistant(Agent):
+    
+    def __init__(self, date, time):
+        super().__init__(date, time)
         
         # TODO try to also explain the way memory is implemented (for comparison)
         self.initial_prompt = """You are a memory management agent. You receive a user message and do one of two things:
@@ -39,10 +46,10 @@ Current time: """ + time
 
         self.client = genai.Client(api_key=API_KEY)
         self.messages = []
-                
-        self.request_tool = types.FunctionDeclaration(
-                name='request',
-                description="Sends your memory request to the request handler agent.",
+
+        self.read_request_tool = types.FunctionDeclaration(
+                name='read_request',
+                description="Sends a request to read information from memory.",
                 parameters=types.Schema(
                     type='OBJECT',
                     properties={
@@ -57,15 +64,15 @@ Current time: """ + time
         
         self.config = {
             "system_instruction": self.initial_prompt,
-            "tools": [types.Tool(function_declarations=[self.request_tool])],
+            "tools": [types.Tool(function_declarations=[self.read_request_tool])],
             # "thinking_config": types.ThinkingConfig(include_thinking=True, thinking_budget=100)
             "tool_config": {"function_calling_config": {"mode": "any"}}
         }
         
     # tool
-    def request(self, message):
+    def read_request(self, message):
 
-        print("REQUEST_TEXT in request (tool) in ChatAssistantAgent")
+        print("REQUEST_TEXT in read_request (tool) in ChatAssistantAgent:")
         print(message)
 
         message = types.Content(parts=[types.Part(text=message)], role='user')
@@ -80,10 +87,10 @@ Current time: """ + time
         curr_date = util.get_curr_date()
         curr_time = util.get_curr_time()
 
-        request_handler = RequestHandlerAgent(tags, displayed, curr_date, curr_time, self)
+        request_handler = ReadAgent(tags, displayed, curr_date, curr_time, self)
         response_content = request_handler.handle_request(message)
-        
-        print("RESPONSE_CONTENT from request_handler.handle_request in request (tool) in CAA")
+
+        print("RESPONSE_CONTENT from request_handler.handle_request in read_request (tool) in CAA")
         print(response_content)
 
         return response_content if response_content else "No response."
@@ -137,33 +144,6 @@ Current time: """ + time
         except genai.errors.ServerError:
             print('Server error occurred, retrying...\n')
             return self.handle_user_input(user_input)
-
-    def answer_clarification_request(self, question):
-        """
-        Answers the clarification request from the RequestHandlerAgent.
-        """
-        self.messages.append({
-            "role": "user",
-            "content": question
-        })
-        try:
-            response = self.client.models.generate_content(
-                contents=[types.Content(role="user", parts=[types.Part(text=question)])],
-                model=MODEL_NAME,
-                config=self.config
-            )
-            print("\nRESPONSE in answer_clarification_request in ChatAssistantAgent:")
-            print(response)
-            response_content = response.candidates[0].content.parts[0]
-            self.messages.append({
-                "role": "model",
-                "content": response_content
-            })
-            return response_content.text
-        except genai.errors.ServerError:
-            print('Server error occurred, retrying...\n')
-            return self.answer_clarification_request(question)
-
 
 
 class ReadAgent:
